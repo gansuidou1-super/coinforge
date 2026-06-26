@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CoinForge">
+<meta name="theme-color" content="#7C3AED">
+<link rel="manifest" href="manifest.json">
+<title>CoinForge</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0F0A1E;--bg2:#1A1030;--bg3:#231544;--card:#1E1338;--card2:#271B45;
+  --purple:#7C3AED;--purple-l:#9D5FF0;--gold:#F59E0B;--gold-l:#FCD34D;
+  --text:#F0E8FF;--text2:#A78BCA;--text3:#6B5A8A;--border:#2D1F50;
+  --green:#10B981;--red:#EF4444;--radius:16px;--nav-h:70px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kochi Pro','Hiragino Sans','Yu Gothic UI',sans-serif;}
+#app{height:100%;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden;}
+
+/* Screens */
+.screen{position:absolute;inset:0;bottom:calc(var(--nav-h) + var(--safe-b));overflow-y:auto;overflow-x:hidden;display:none;background:var(--bg);-webkit-overflow-scrolling:touch;}
+.screen.active{display:block;}
+.screen::-webkit-scrollbar{display:none;}
+
+/* Nav */
+nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);
+  background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:flex-start;
+  justify-content:space-around;padding-top:8px;z-index:100;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;
+  color:var(--text3);font-size:10px;padding:4px 12px;cursor:pointer;transition:.2s;}
+.nav-btn.active{color:var(--purple-l);}
+.nav-btn svg{width:24px;height:24px;stroke-width:1.8;}
+
+/* Header */
+.header{padding:14px 20px 8px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border);}
+.header h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--gold-l),var(--purple-l));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.balance-card{margin:12px 20px;background:linear-gradient(135deg,var(--bg3),var(--card2));
+  border:1px solid var(--purple);border-radius:20px;padding:22px;position:relative;overflow:hidden;}
+.balance-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;
+  border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.3),transparent);pointer-events:none;}
+.balance-label{font-size:13px;color:var(--text2);margin-bottom:4px;}
+.balance-amount{font-size:34px;font-weight:800;background:linear-gradient(135deg,var(--gold-l),#fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.balance-actions{display:flex;gap:10px;margin-top:16px;}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:12px;border:none;font-size:14px;font-weight:600;cursor:pointer;
+  transition:.15s;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--purple);color:#fff;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#D97706);color:#7A3A00;}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-danger{background:transparent;color:var(--red);border:1px solid var(--red);}
+.btn-sm{padding:7px 14px;font-size:13px;border-radius:10px;flex:none;}
+
+/* Section */
+.section{padding:16px 20px;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
+.see-all{font-size:13px;color:var(--purple-l);background:none;border:none;cursor:pointer;}
+
+/* List */
+.list-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);
+  border-radius:12px;margin-bottom:8px;}
+.list-item-info{flex:1;min-width:0;}
+.list-item-info h3{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.list-item-info p{font-size:13px;color:var(--text2);margin-top:2px;}
+.list-item-right{text-align:right;flex-shrink:0;}
+.amount{font-size:16px;font-weight:700;}
+.amount.pos{color:var(--green);}
+.amount.neg{color:var(--red);}
+
+/* Avatar / Coin badge */
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;
+  justify-content:center;font-size:18px;flex-shrink:0;border:2px solid var(--border);}
+.avatar.sm{width:32px;height:32px;font-size:13px;}
+.coin-badge{width:42px;height:42px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,var(--gold-l),var(--gold));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#7A4A00;
+  box-shadow:0 0 12px rgba(245,158,11,.4);flex-shrink:0;}
+.coin-badge.sm{width:32px;height:32px;font-size:10px;}
+
+/* Feed */
+.feed-item{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;}
+.feed-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;margin-top:6px;}
+.feed-text{font-size:14px;line-height:1.5;}
+.feed-text strong{color:var(--gold-l);}
+.feed-time{font-size:12px;color:var(--text3);margin-top:3px;}
+
+/* Mission */
+.mission-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;}
+.mission-reward{background:linear-gradient(135deg,var(--bg3),var(--card2));border:1px solid var(--gold);
+  border-radius:10px;padding:8px 10px;text-align:center;flex-shrink:0;min-width:60px;}
+.mission-reward .rew-n{font-size:15px;font-weight:800;color:var(--gold-l);}
+.mission-reward .rew-s{font-size:10px;color:var(--text2);}
+.mission-info{flex:1;min-width:0;}
+.mission-info h3{font-size:14px;font-weight:600;}
+.mission-info p{font-size:12px;color:var(--text2);margin-top:3px;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.stat-box .stat-n{font-size:22px;font-weight:800;color:var(--gold-l);}
+.stat-box .stat-l{font-size:12px;color:var(--text2);margin-top:2px;}
+
+/* Tag */
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;
+  background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.tag.active{background:rgba(124,58,237,.2);color:var(--purple-l);border-color:var(--purple);}
+
+/* Modal */
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border-radius:24px 24px 0 0;padding:24px 20px;
+  width:100%;max-height:88vh;overflow-y:auto;border-top:1px solid var(--border);}
+.modal::-webkit-scrollbar{display:none;}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:20px;}
+
+/* Form */
+.form-group{margin-bottom:14px;}
+.form-label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block;font-weight:500;}
+.form-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;color:var(--text);font-size:15px;outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--purple);}
+select.form-input option{background:var(--card2);color:var(--text);}
+
+/* Toast */
+.toast{position:absolute;top:16px;left:20px;right:20px;background:var(--card2);
+  border:1px solid var(--green);border-radius:12px;padding:12px 16px;font-size:14px;font-weight:500;
+  color:var(--green);z-index:999;transform:translateY(-120px);transition:.3s;text-align:center;}
+.toast.show{transform:translateY(0);}
+
+/* User select screen */
+.user-select-screen{position:absolute;inset:0;background:var(--bg);z-index:300;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;overflow-y:auto;}
+.app-logo{width:72px;height:72px;background:linear-gradient(135deg,var(--purple),var(--gold));
+  border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;
+  color:#fff;margin:0 auto 16px;box-shadow:0 0 36px rgba(124,58,237,.4);}
+.user-card{background:var(--card);border:2px solid var(--border);border-radius:16px;
+  padding:20px 16px;cursor:pointer;transition:.2s;text-align:center;flex:1;}
+.user-card:active,.user-card.sel{border-color:var(--purple);background:rgba(124,58,237,.1);}
+.user-card-icon{font-size:38px;margin-bottom:8px;}
+.user-card h3{font-size:15px;font-weight:700;}
+.user-card p{font-size:12px;color:var(--text2);margin-top:3px;}
+
+/* User switcher chip */
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:20px;padding:4px 10px;cursor:pointer;}
+.user-chip span{font-size:13px;font-weight:600;}
+
+/* Info box */
+.info-box{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.3);
+  border-radius:12px;padding:14px;font-size:13px;line-height:1.65;color:var(--text2);}
+
+/* Market row */
+.mkt-row{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+
+/* Profile header */
+.profile-header{background:linear-gradient(180deg,var(--bg3) 0%,var(--bg) 100%);
+  padding:28px 20px 20px;text-align:center;}
+.profile-avatar{width:76px;height:76px;border-radius:50%;
+  background:linear-gradient(135deg,var(--purple),var(--gold));
+  margin:0 auto 10px;display:flex;align-items:center;justify-content:center;
+  font-size:30px;border:3px solid var(--border);}
+
+/* Progress */
+.progress-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:3px;}
+
+/* QR mock */
+.qr-mock{width:140px;height:140px;margin:16px auto;background:var(--card);
+  border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:72px;
+  border:1px solid var(--border);}
+
+/* Empty state */
+.empty{text-align:center;padding:28px;color:var(--text3);font-size:14px;display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ========== USER SELECT ========== -->
+<div class="user-select-screen" id="user-select-screen">
+  <div class="app-logo">C</div>
+  <h1 style="font-size:24px;font-weight:800;margin-bottom:8px;
+    background:linear-gradient(135deg,var(--gold-l),var(--purple-l));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CoinForge</h1>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:28px;">誰のアカウントで使いますか？</p>
+  <div style="display:flex;gap:12px;width:100%;margin-bottom:20px;" id="user-cards-row"></div>
+  <button class="btn btn-outline" style="width:100%;font-size:13px;" onclick="showModal('add-user-modal')">
+    ＋ 新しいユーザーを追加
+  </button>
+  <p style="font-size:11px;color:var(--text3);margin-top:14px;">データはこの端末にのみ保存されます</p>
+</div>
+
+<!-- ========== SCREENS ========== -->
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="header">
+    <h1>CoinForge</h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="user-chip" onclick="goToUserSelect()">
+        <span id="hdr-icon">😊</span>
+        <span id="hdr-name">---</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:13px;height:13px;stroke-width:2.5;">
+          <polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <button onclick="showModal('notif-modal')" style="background:none;border:none;cursor:pointer;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:23px;height:23px;stroke-width:1.8">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="balance-card">
+    <div class="balance-label" id="home-user-label">総保有コイン</div>
+    <div style="display:flex;align-items:baseline;gap:4px;">
+      <div class="balance-amount" id="total-balance">0</div>
+      <div style="font-size:15px;color:var(--text2);">コイン</div>
+    </div>
+    <div style="margin-top:5px;font-size:12px;color:var(--text2);" id="home-coin-summary"></div>
+    <div class="balance-actions">
+      <button class="btn btn-gold" onclick="openSendModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>送金
+      </button>
+      <button class="btn btn-outline" onclick="showModal('receive-modal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5">
+          <polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>受取
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">保有コイン</span>
+      <button class="see-all" onclick="switchTab('wallet')">すべて見る</button>
+    </div>
+    <div id="home-coins"></div>
+    <div class="empty" id="home-coins-empty">コインを作成してはじめよう</div>
+  </div>
+
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">最近の活動</span></div>
+    <div id="home-feed"></div>
+    <div class="empty" id="home-feed-empty">まだ活動がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- WALLET -->
+<div class="screen" id="screen-wallet">
+  <div class="header">
+    <h1>ウォレット</h1>
+    <button class="btn btn-sm btn-primary" onclick="showModal('create-coin-modal')">＋ コイン作成</button>
+  </div>
+  <div class="section">
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-n" id="w-total">0</div><div class="stat-l">総コイン数</div></div>
+      <div class="stat-box"><div class="stat-n" id="w-txcount">0</div><div class="stat-l">取引回数</div></div>
+    </div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">保有コイン</span></div>
+    <div id="w-coins"></div>
+    <div class="empty" id="w-coins-empty">コインを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">取引履歴</span></div>
+    <div id="w-tx"></div>
+    <div class="empty" id="w-tx-empty">取引履歴がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- COMMUNITY -->
+<div class="screen" id="screen-community">
+  <div class="header">
+    <h1>コミュニティ</h1>
+    <button class="btn btn-sm btn-primary" onclick="showModal('create-comm-modal')">＋ 作成</button>
+  </div>
+  <div class="section">
+    <div class="section-header"><span class="section-title">コミュニティ</span></div>
+    <div id="comm-list"></div>
+    <div class="empty" id="comm-list-empty">コミュニティを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header">
+      <span class="section-title">ミッション</span>
+      <button class="btn btn-sm btn-outline" onclick="showModal('create-mission-modal')">＋ 作成</button>
+    </div>
+    <div id="mission-list"></div>
+    <div class="empty" id="mission-empty">ミッションを作成してはじめよう</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- MARKET -->
+<div class="screen" id="screen-market">
+  <div class="header"><h1>マーケット</h1></div>
+  <div class="section">
+    <div class="info-box">
+      💡 家族・仲間みんなのコインと取引履歴が見られる共有ボードです。
+      相手のデータをインポートするとここに表示されます。
+    </div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">全コイン</span></div>
+    <div id="mkt-coins"></div>
+    <div class="empty" id="mkt-coins-empty">まだコインがありません</div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">全取引履歴</span></div>
+    <div id="mkt-tx"></div>
+    <div class="empty" id="mkt-tx-empty">まだ取引がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- PROFILE -->
+<div class="screen" id="screen-profile">
+  <div class="profile-header">
+    <div class="profile-avatar" id="prof-avatar">😊</div>
+    <div style="font-size:19px;font-weight:700;" id="prof-name">---</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:3px;" id="prof-handle">---</div>
+    <div style="display:flex;gap:20px;justify-content:center;margin-top:14px;">
+      <div style="text-align:center;">
+        <div style="font-size:17px;font-weight:700;" id="prof-coins">0</div>
+        <div style="font-size:11px;color:var(--text2);">コイン種類</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:17px;font-weight:700;" id="prof-txc">0</div>
+        <div style="font-size:11px;color:var(--text2);">取引回数</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:17px;font-weight:700;" id="prof-mc">0</div>
+        <div style="font-size:11px;color:var(--text2);">ミッション達成</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">今週の目標達成率</div>
+      <div style="font-size:26px;font-weight:800;color:var(--gold-l);margin-bottom:8px;" id="prof-rate">0%</div>
+      <div class="progress-bar"><div class="progress-fill" id="prof-bar" style="width:0%;"></div></div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0;">
+    <div class="info-box" style="margin-bottom:12px;">
+      <div style="font-weight:700;color:var(--purple-l);margin-bottom:8px;">📦 データ管理</div>
+      データをJSON形式でバックアップできます。<br>
+      将来 Supabase に移行するときはインポートするだけで全データが引き継がれます。
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-sm btn-primary" onclick="exportData()">⬇ エクスポート</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('import-file').click()">⬆ インポート</button>
+        <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(event)">
+      </div>
+    </div>
+    <div class="info-box">
+      <div style="font-weight:700;color:var(--purple-l);margin-bottom:8px;">👥 2人で使う方法</div>
+      ①エクスポートしたJSONをLINEで相手に送る<br>
+      ②受け取った側がインポートする<br>
+      ③マーケット画面で全員の取引が見られる
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0;">
+    <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('settings-modal')">
+      ⚙ 設定・ユーザー管理
+    </button>
+    <button class="btn btn-danger" style="width:100%;" onclick="confirmDelete()">
+      🗑 このユーザーのデータを削除
+    </button>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- ========== NAV ========== -->
+<nav>
+  <button class="nav-btn active" id="nav-home" onclick="switchTab('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/></svg>ホーム
+  </button>
+  <button class="nav-btn" id="nav-wallet" onclick="switchTab('wallet')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>ウォレット
+  </button>
+  <button class="nav-btn" id="nav-community" onclick="switchTab('community')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>コミュニティ
+  </button>
+  <button class="nav-btn" id="nav-market" onclick="switchTab('market')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/></svg>マーケット
+  </button>
+  <button class="nav-btn" id="nav-profile" onclick="switchTab('profile')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/></svg>プロフィール
+  </button>
+</nav>
+
+<!-- ========== MODALS ========== -->
+
+<!-- Add User -->
+<div class="modal-overlay" id="add-user-modal" onclick="closeBg(event,'add-user-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>ユーザー追加</h2>
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" type="text" placeholder="例: さとし" id="nu-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン（絵文字）</label>
+      <input class="form-input" type="text" placeholder="😊" id="nu-icon" maxlength="2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ハンドル名（英数字）</label>
+      <input class="form-input" type="text" placeholder="satoshi" id="nu-handle">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="addUser()">追加する</button>
+  </div>
+</div>
+
+<!-- Send -->
+<div class="modal-overlay" id="send-modal" onclick="closeBg(event,'send-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>送金</h2>
+    <div class="form-group">
+      <label class="form-label">送金先</label>
+      <select class="form-input" id="s-to"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">コイン</label>
+      <select class="form-input" id="s-coin" onchange="updateSendBalance()"></select>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;" id="s-bal-info"></div>
+    <div class="form-group">
+      <label class="form-label">数量</label>
+      <input class="form-input" type="number" placeholder="0" id="s-amount" min="1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <input class="form-input" type="text" placeholder="ありがとう！" id="s-memo">
+    </div>
+    <button class="btn btn-gold" style="width:100%;font-size:16px;padding:14px;" onclick="doSend()">送金する</button>
+  </div>
+</div>
+
+<!-- Receive -->
+<div class="modal-overlay" id="receive-modal" onclick="closeBg(event,'receive-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>受取</h2>
+    <div style="text-align:center;">
+      <div class="qr-mock">📱</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:14px;line-height:1.6;">
+        相手の「送金」画面で<br>あなたのハンドル名を選んでもらいましょう</p>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;
+        padding:12px;font-size:17px;font-weight:700;color:var(--gold-l);" id="recv-handle">---</div>
+    </div>
+  </div>
+</div>
+
+<!-- Notifications -->
+<div class="modal-overlay" id="notif-modal" onclick="closeBg(event,'notif-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>通知</h2>
+    <div id="notif-list"></div>
+    <div class="empty" id="notif-empty" style="display:block;">通知はありません</div>
+  </div>
+</div>
+
+<!-- Create Coin -->
+<div class="modal-overlay" id="create-coin-modal" onclick="closeBg(event,'create-coin-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>コイン作成</h2>
+    <div class="form-group">
+      <label class="form-label">コイン名</label>
+      <input class="form-input" type="text" placeholder="例: Fitness Coin" id="c-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">シンボル（英大文字 2〜6文字）</label>
+      <input class="form-input" type="text" placeholder="例: FIT" id="c-sym" maxlength="6">
+    </div>
+    <div class="form-group">
+      <label class="form-label">説明</label>
+      <input class="form-input" type="text" placeholder="このコインの用途" id="c-desc">
+    </div>
+    <div class="form-group">
+      <label class="form-label">初期発行数</label>
+      <input class="form-input" type="number" placeholder="1000" id="c-supply" min="1">
+    </div>
+    <button class="btn btn-gold" style="width:100%;font-size:15px;padding:14px;" onclick="createCoin()">発行する</button>
+  </div>
+</div>
+
+<!-- Create Community -->
+<div class="modal-overlay" id="create-comm-modal" onclick="closeBg(event,'create-comm-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>コミュニティ作成</h2>
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" type="text" placeholder="例: 田中家" id="cm-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">説明</label>
+      <input class="form-input" type="text" placeholder="どんなコミュニティ？" id="cm-desc">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン（絵文字）</label>
+      <input class="form-input" type="text" placeholder="👨‍👩‍👧" id="cm-icon" maxlength="4">
+    </div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="createComm()">作成する</button>
+  </div>
+</div>
+
+<!-- Create Mission -->
+<div class="modal-overlay" id="create-mission-modal" onclick="closeBg(event,'create-mission-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>ミッション作成</h2>
+    <div class="form-group">
+      <label class="form-label">タイトル</label>
+      <input class="form-input" type="text" placeholder="例: 腕立て50回" id="m-title">
+    </div>
+    <div class="form-group">
+      <label class="form-label">説明</label>
+      <input class="form-input" type="text" placeholder="達成条件" id="m-desc">
+    </div>
+    <div class="form-group">
+      <label class="form-label">報酬コイン</label>
+      <select class="form-input" id="m-coin"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">報酬数量</label>
+      <input class="form-input" type="number" placeholder="10" id="m-reward" min="1">
+    </div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="createMission()">作成する</button>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="modal-overlay" id="settings-modal" onclick="closeBg(event,'settings-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>ユーザー管理</h2>
+    <div id="settings-users"></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:12px;"
+      onclick="closeModal('settings-modal');showModal('add-user-modal')">＋ ユーザーを追加</button>
+  </div>
+</div>
+
+<!-- Mission complete -->
+<div class="modal-overlay" id="mission-done-modal" onclick="closeBg(event,'mission-done-modal')">
+  <div class="modal" style="text-align:center;">
+    <div class="modal-handle"></div>
+    <div style="font-size:56px;margin-bottom:10px;">🎉</div>
+    <h2 style="margin-bottom:8px;">ミッション達成！</h2>
+    <div id="mission-done-text" style="font-size:18px;color:var(--gold-l);font-weight:700;margin-bottom:20px;"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="closeModal('mission-done-modal')">やったー！</button>
+  </div>
+</div>
+
+</div><!-- /app -->
+<script>
+// ================================================================
+//  DATA LAYER
+// ================================================================
+const LS = 'coinforge_v2';
+
+function load() {
+  try { const r = localStorage.getItem(LS); return r ? JSON.parse(r) : null; } catch { return null; }
+}
+function save() { localStorage.setItem(LS, JSON.stringify(DB)); }
+
+function initDB() {
+  return {
+    users: [],        // {id, name, icon, handle}
+    wallets: {},      // {userId: {symbol: balance}}
+    coins: {},        // {userId: [{symbol,name,desc,maxSupply,createdAt}]}
+    txs: [],          // {id,from,to,coin,amount,memo,type,time}
+    communities: [],  // {id,name,desc,icon,ownerId,createdAt}
+    missions: [],     // {id,title,desc,coinSymbol,reward,ownerId,completedBy[],createdAt}
+    notifs: {},       // {userId: [{icon,text,time}]}
+    currentUserId: null
+  };
+}
+
+let DB = load() || initDB();
+
+// ================================================================
+//  HELPERS
+// ================================================================
+function uid() { return '_' + Date.now() + Math.random().toString(36).slice(2, 7); }
+
+function timeAgo(ts) {
+  const d = Date.now() - ts, m = Math.floor(d / 60000);
+  if (m < 1) return 'たった今';
+  if (m < 60) return m + '分前';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + '時間前';
+  return Math.floor(h / 24) + '日前';
+}
+
+function getUser(id) { return DB.users.find(u => u.id === id); }
+function me() { return getUser(DB.currentUserId); }
+
+function bal(userId, sym) { return ((DB.wallets[userId] || {})[sym]) || 0; }
+function setBal(userId, sym, v) {
+  if (!DB.wallets[userId]) DB.wallets[userId] = {};
+  DB.wallets[userId][sym] = v;
+}
+function totalBal(userId) {
+  return Object.values(DB.wallets[userId] || {}).reduce((a, b) => a + b, 0);
+}
+function myCoins(userId) { return DB.coins[userId] || []; }
+
+function pushNotif(userId, icon, text) {
+  if (!DB.notifs[userId]) DB.notifs[userId] = [];
+  DB.notifs[userId].unshift({ icon, text, time: Date.now() });
+  if (DB.notifs[userId].length > 60) DB.notifs[userId].pop();
+}
+
+function addTx(t) {
+  DB.txs.unshift({
+    id: uid(), from: t.from || null, to: t.to || null,
+    coin: t.coin, amount: t.amount, memo: t.memo || '',
+    type: t.type || 'send', time: Date.now()
+  });
+}
+
+// ================================================================
+//  USER
+// ================================================================
+function renderUserSelect() {
+  const el = document.getElementById('user-cards-row');
+  if (DB.users.length === 0) {
+    el.innerHTML = '';
+    showModal('add-user-modal');
+    return;
+  }
+  el.innerHTML = DB.users.map(u => `
+    <div class="user-card" onclick="selectUser('${u.id}')">
+      <div class="user-card-icon">${u.icon || '😊'}</div>
+      <h3>${u.name}</h3>
+      <p>@${u.handle}</p>
+    </div>`).join('');
+}
+
+function selectUser(id) {
+  DB.currentUserId = id;
+  save();
+  document.getElementById('user-select-screen').style.display = 'none';
+  renderAll();
+  switchTab('home');
+}
+
+function goToUserSelect() {
+  DB.currentUserId = null;
+  save();
+  document.getElementById('user-select-screen').style.display = 'flex';
+  renderUserSelect();
+}
+
+function addUser() {
+  const name = document.getElementById('nu-name').value.trim();
+  const icon = document.getElementById('nu-icon').value.trim() || '😊';
+  const handle = document.getElementById('nu-handle').value.trim().replace(/\s/g, '') || name;
+  if (!name) { toast('名前を入力してください', true); return; }
+  if (DB.users.find(u => u.handle === handle)) { toast('そのハンドル名はすでに使われています', true); return; }
+  const id = uid();
+  DB.users.push({ id, name, icon, handle });
+  DB.wallets[id] = {};
+  DB.coins[id] = [];
+  DB.notifs[id] = [];
+  save();
+  closeModal('add-user-modal');
+  ['nu-name','nu-icon','nu-handle'].forEach(x => document.getElementById(x).value = '');
+  renderUserSelect();
+  toast(name + ' を追加しました！');
+}
+
+function confirmDelete() {
+  const u = me();
+  if (!u) return;
+  if (!confirm(u.name + ' のデータをすべて削除しますか？\nこの操作は元に戻せません。')) return;
+  DB.users = DB.users.filter(x => x.id !== u.id);
+  delete DB.wallets[u.id];
+  delete DB.coins[u.id];
+  delete DB.notifs[u.id];
+  DB.txs = DB.txs.filter(t => t.from !== u.id && t.to !== u.id);
+  DB.communities = DB.communities.filter(c => c.ownerId !== u.id);
+  DB.missions = DB.missions.filter(m => m.ownerId !== u.id);
+  DB.currentUserId = null;
+  save();
+  goToUserSelect();
+}
+
+// ================================================================
+//  COINS
+// ================================================================
+function createCoin() {
+  const u = me(); if (!u) return;
+  const name = document.getElementById('c-name').value.trim();
+  const sym = document.getElementById('c-sym').value.trim().toUpperCase();
+  const desc = document.getElementById('c-desc').value.trim();
+  const supply = parseInt(document.getElementById('c-supply').value) || 1000;
+  if (!name || sym.length < 2) { toast('コイン名とシンボル（2文字以上）を入力してください', true); return; }
+  if (myCoins(u.id).find(c => c.symbol === sym)) { toast('そのシンボルはすでに使われています', true); return; }
+  DB.coins[u.id].push({ symbol: sym, name, desc, maxSupply: supply, createdAt: Date.now() });
+  setBal(u.id, sym, supply);
+  addTx({ from: null, to: u.id, coin: sym, amount: supply, memo: '初期発行', type: 'mint' });
+  pushNotif(u.id, '🪙', name + '（' + sym + '）を ' + supply + ' 枚発行しました');
+  save();
+  closeModal('create-coin-modal');
+  ['c-name','c-sym','c-desc','c-supply'].forEach(x => document.getElementById(x).value = '');
+  toast(name + '（' + sym + '）を発行しました！');
+  renderAll();
+}
+
+// ================================================================
+//  SEND
+// ================================================================
+function openSendModal() {
+  const u = me(); if (!u) return;
+  const others = DB.users.filter(x => x.id !== u.id);
+  document.getElementById('s-to').innerHTML = others.length === 0
+    ? '<option value="">（他のユーザーがいません）</option>'
+    : others.map(x => `<option value="${x.id}">${x.icon} ${x.name} (@${x.handle})</option>`).join('');
+  const coins = myCoins(u.id).filter(c => bal(u.id, c.symbol) > 0);
+  document.getElementById('s-coin').innerHTML = coins.length === 0
+    ? '<option value="">（送れるコインがありません）</option>'
+    : coins.map(c => `<option value="${c.symbol}">${c.symbol} — ${c.name}</option>`).join('');
+  updateSendBalance();
+  showModal('send-modal');
+}
+
+function updateSendBalance() {
+  const u = me(); if (!u) return;
+  const sym = document.getElementById('s-coin').value;
+  const b = sym ? bal(u.id, sym) : 0;
+  document.getElementById('s-bal-info').textContent = sym ? '残高: ' + b.toLocaleString() + ' ' + sym : '';
+}
+
+function doSend() {
+  const u = me(); if (!u) return;
+  const toId = document.getElementById('s-to').value;
+  const sym = document.getElementById('s-coin').value;
+  const amount = parseInt(document.getElementById('s-amount').value);
+  const memo = document.getElementById('s-memo').value.trim();
+  if (!toId) { toast('送金先を選んでください', true); return; }
+  if (!sym) { toast('コインを選んでください', true); return; }
+  if (!amount || amount <= 0) { toast('数量を入力してください', true); return; }
+  const b = bal(u.id, sym);
+  if (b < amount) { toast('残高が不足しています（残高: ' + b + ' ' + sym + '）', true); return; }
+  setBal(u.id, sym, b - amount);
+  setBal(toId, sym, bal(toId, sym) + amount);
+  addTx({ from: u.id, to: toId, coin: sym, amount, memo, type: 'send' });
+  const toUser = getUser(toId);
+  pushNotif(toId, '💰', u.name + ' から ' + amount + ' ' + sym + ' が届きました' + (memo ? '「' + memo + '」' : ''));
+  save();
+  closeModal('send-modal');
+  ['s-amount','s-memo'].forEach(x => document.getElementById(x).value = '');
+  toast(amount + ' ' + sym + ' を ' + (toUser?.name || '?') + ' に送金しました！');
+  renderAll();
+}
+
+// ================================================================
+//  COMMUNITY / MISSION
+// ================================================================
+function createComm() {
+  const u = me(); if (!u) return;
+  const name = document.getElementById('cm-name').value.trim();
+  if (!name) { toast('名前を入力してください', true); return; }
+  DB.communities.push({
+    id: uid(), name,
+    desc: document.getElementById('cm-desc').value.trim(),
+    icon: document.getElementById('cm-icon').value.trim() || '🏘️',
+    ownerId: u.id, createdAt: Date.now()
+  });
+  save();
+  closeModal('create-comm-modal');
+  ['cm-name','cm-desc','cm-icon'].forEach(x => document.getElementById(x).value = '');
+  toast('「' + name + '」を作成しました！');
+  renderAll();
+}
+
+function createMission() {
+  const u = me(); if (!u) return;
+  const title = document.getElementById('m-title').value.trim();
+  const sym = document.getElementById('m-coin').value;
+  const reward = parseInt(document.getElementById('m-reward').value) || 10;
+  if (!title) { toast('タイトルを入力してください', true); return; }
+  if (!sym) { toast('報酬コインを選んでください', true); return; }
+  DB.missions.push({
+    id: uid(), title,
+    desc: document.getElementById('m-desc').value.trim(),
+    coinSymbol: sym, reward, ownerId: u.id, completedBy: [], createdAt: Date.now()
+  });
+  save();
+  closeModal('create-mission-modal');
+  ['m-title','m-desc','m-reward'].forEach(x => document.getElementById(x).value = '');
+  toast('ミッション「' + title + '」を作成しました！');
+  renderAll();
+}
+
+function completeMission(mId) {
+  const u = me(); if (!u) return;
+  const m = DB.missions.find(x => x.id === mId);
+  if (!m || m.completedBy.includes(u.id)) return;
+  if (bal(m.ownerId, m.coinSymbol) < m.reward) {
+    toast('報酬コインの残高が不足しています', true); return;
+  }
+  m.completedBy.push(u.id);
+  setBal(m.ownerId, m.coinSymbol, bal(m.ownerId, m.coinSymbol) - m.reward);
+  setBal(u.id, m.coinSymbol, bal(u.id, m.coinSymbol) + m.reward);
+  addTx({ from: m.ownerId, to: u.id, coin: m.coinSymbol, amount: m.reward,
+    memo: 'ミッション達成: ' + m.title, type: 'mission' });
+  pushNotif(u.id, '🎯', 'ミッション「' + m.title + '」達成！+' + m.reward + ' ' + m.coinSymbol);
+  save();
+  document.getElementById('mission-done-text').textContent = '+' + m.reward + ' ' + m.coinSymbol + ' 獲得！';
+  showModal('mission-done-modal');
+  renderAll();
+}
+
+// ================================================================
+//  EXPORT / IMPORT
+// ================================================================
+function exportData() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'coinforge_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('エクスポートしました！');
+}
+
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imp = JSON.parse(ev.target.result);
+      // merge users
+      (imp.users || []).forEach(u => {
+        if (!DB.users.find(x => x.id === u.id)) {
+          DB.users.push(u);
+          DB.wallets[u.id] = imp.wallets?.[u.id] || {};
+          DB.coins[u.id] = imp.coins?.[u.id] || [];
+          DB.notifs[u.id] = imp.notifs?.[u.id] || [];
+        }
+      });
+      // merge txs
+      const tids = new Set(DB.txs.map(t => t.id));
+      (imp.txs || []).forEach(t => { if (!tids.has(t.id)) DB.txs.push(t); });
+      DB.txs.sort((a, b) => b.time - a.time);
+      // merge communities
+      const cids = new Set(DB.communities.map(c => c.id));
+      (imp.communities || []).forEach(c => { if (!cids.has(c.id)) DB.communities.push(c); });
+      // merge missions
+      const mids = new Set(DB.missions.map(m => m.id));
+      (imp.missions || []).forEach(m => { if (!mids.has(m.id)) DB.missions.push(m); });
+      save();
+      toast('インポート完了！マーケットで確認できます');
+      renderAll();
+    } catch { toast('ファイルの形式が正しくありません', true); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ================================================================
+//  RENDER
+// ================================================================
+function renderAll() {
+  const u = me(); if (!u) return;
+  renderHome(u);
+  renderWallet(u);
+  renderCommunity(u);
+  renderMarket();
+  renderProfile(u);
+  // update header
+  document.getElementById('hdr-icon').textContent = u.icon || '😊';
+  document.getElementById('hdr-name').textContent = u.name;
+}
+
+function renderHome(u) {
+  document.getElementById('total-balance').textContent = totalBal(u.id).toLocaleString();
+  document.getElementById('home-user-label').textContent = u.name + ' の残高';
+  const coins = myCoins(u.id);
+  document.getElementById('home-coin-summary').textContent = coins.length > 0
+    ? coins.map(c => c.symbol + ' ' + bal(u.id, c.symbol).toLocaleString()).join(' / ')
+    : 'コインなし';
+  // coin list
+  const cl = document.getElementById('home-coins');
+  const ce = document.getElementById('home-coins-empty');
+  if (coins.length === 0) { cl.innerHTML = ''; ce.style.display = 'block'; }
+  else {
+    ce.style.display = 'none';
+    cl.innerHTML = coins.slice(0, 3).map(c =>
+      `<div class="list-item">
+        <div class="coin-badge sm">${c.symbol.slice(0,3)}</div>
+        <div class="list-item-info"><h3>${c.name}</h3><p>${c.symbol}</p></div>
+        <div class="list-item-right"><div class="amount">${bal(u.id,c.symbol).toLocaleString()}</div></div>
+      </div>`).join('');
+  }
+  // feed
+  const myTxs = DB.txs.filter(t => t.from === u.id || t.to === u.id).slice(0, 8);
+  const fl = document.getElementById('home-feed');
+  const fe = document.getElementById('home-feed-empty');
+  if (myTxs.length === 0) { fl.innerHTML = ''; fe.style.display = 'block'; }
+  else {
+    fe.style.display = 'none';
+    fl.innerHTML = myTxs.map(tx => {
+      const isIn = tx.to === u.id;
+      const other = isIn ? getUser(tx.from) : getUser(tx.to);
+      let txt = '';
+      if (tx.type === 'mint') txt = `<strong>${tx.amount} ${tx.coin}</strong> を発行しました`;
+      else if (tx.type === 'mission') txt = `ミッション達成！ <strong>+${tx.amount} ${tx.coin}</strong>`;
+      else if (isIn) txt = `<strong>${other?.name||'?'}</strong> から <strong>${tx.amount} ${tx.coin}</strong> 受取${tx.memo?'「'+tx.memo+'」':''}`;
+      else txt = `<strong>${other?.name||'?'}</strong> へ <strong>${tx.amount} ${tx.coin}</strong> 送金${tx.memo?'「'+tx.memo+'」':''}`;
+      return `<div class="feed-item"><div class="feed-dot"></div>
+        <div><div class="feed-text">${txt}</div><div class="feed-time">${timeAgo(tx.time)}</div></div></div>`;
+    }).join('');
+  }
+}
+
+function renderWallet(u) {
+  const coins = myCoins(u.id);
+  const myTxs = DB.txs.filter(t => t.from === u.id || t.to === u.id);
+  document.getElementById('w-total').textContent = totalBal(u.id).toLocaleString();
+  document.getElementById('w-txcount').textContent = myTxs.length;
+  const wc = document.getElementById('w-coins'), we = document.getElementById('w-coins-empty');
+  if (coins.length === 0) { wc.innerHTML = ''; we.style.display = 'block'; }
+  else {
+    we.style.display = 'none';
+    wc.innerHTML = coins.map(c =>
+      `<div class="list-item">
+        <div class="coin-badge">${c.symbol.slice(0,3)}</div>
+        <div class="list-item-info"><h3>${c.name}</h3>
+          <p>${c.symbol}${c.desc ? ' · '+c.desc : ''} · 発行上限 ${c.maxSupply.toLocaleString()}</p></div>
+        <div class="list-item-right"><div class="amount" style="font-size:18px;">${bal(u.id,c.symbol).toLocaleString()}</div></div>
+      </div>`).join('');
+  }
+  const tx = document.getElementById('w-tx'), te = document.getElementById('w-tx-empty');
+  if (myTxs.length === 0) { tx.innerHTML = ''; te.style.display = 'block'; }
+  else {
+    te.style.display = 'none';
+    tx.innerHTML = myTxs.slice(0, 30).map(t => {
+      const isIn = t.to === u.id;
+      const icon = t.type==='mint'?'🪙':t.type==='mission'?'🎯':isIn?'↓':'↑';
+      const other = isIn ? getUser(t.from) : getUser(t.to);
+      const label = t.type==='mint'?'発行':t.type==='mission'?'ミッション達成':other?.name||'?';
+      return `<div class="list-item">
+        <div class="avatar" style="background:${isIn?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)'};
+          color:${isIn?'var(--green)':'var(--red)'};font-size:16px;">${icon}</div>
+        <div class="list-item-info"><h3>${label}</h3>
+          <p>${timeAgo(t.time)}${t.memo?' · '+t.memo:''}</p></div>
+        <div class="list-item-right">
+          <div class="amount ${isIn?'pos':'neg'}">${isIn?'+':'-'}${t.amount} ${t.coin}</div>
+        </div></div>`;
+    }).join('');
+  }
+}
+
+function renderCommunity(u) {
+  const cl = document.getElementById('comm-list'), ce = document.getElementById('comm-list-empty');
+  if (DB.communities.length === 0) { cl.innerHTML = ''; ce.style.display = 'block'; }
+  else {
+    ce.style.display = 'none';
+    cl.innerHTML = DB.communities.map(c => {
+      const owner = getUser(c.ownerId);
+      return `<div class="mkt-row">
+        <div class="avatar" style="font-size:20px;">${c.icon}</div>
+        <div class="market-info" style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;">${c.name}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">
+            ${c.desc||''} · ${owner?.name||'?'}</div>
+        </div></div>`;
+    }).join('');
+  }
+  // missions
+  const ml = document.getElementById('mission-list'), me2 = document.getElementById('mission-empty');
+  if (DB.missions.length === 0) { ml.innerHTML = ''; me2.style.display = 'block'; }
+  else {
+    me2.style.display = 'none';
+    // populate mission coin select when modal opens
+    ml.innerHTML = DB.missions.map(m => {
+      const done = m.completedBy.includes(u.id);
+      const owner = getUser(m.ownerId);
+      const ownerBal = bal(m.ownerId, m.coinSymbol);
+      const canDo = !done && ownerBal >= m.reward;
+      return `<div class="mission-card">
+        <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coinSymbol}</div></div>
+        <div class="mission-info">
+          <h3>${m.title}</h3>
+          <p>${m.desc||''} · 作成: ${owner?.name||'?'}</p>
+        </div>
+        <button class="btn btn-sm ${done?'btn-outline':'btn-primary'}" style="flex-shrink:0;"
+          ${!canDo?'disabled style="opacity:.4;cursor:default;"':''}
+          onclick="${canDo?`completeMission('${m.id}')`:''}">${done?'✓ 達成済':'達成！'}
+        </button></div>`;
+    }).join('');
+  }
+}
+
+function renderMarket() {
+  // all coins
+  const allCoins = DB.users.flatMap(u =>
+    myCoins(u.id).map(c => ({ ...c, ownerName: u.name, ownerIcon: u.icon, ownerBal: bal(u.id, c.symbol) }))
+  );
+  const mc = document.getElementById('mkt-coins'), me = document.getElementById('mkt-coins-empty');
+  if (allCoins.length === 0) { mc.innerHTML = ''; me.style.display = 'block'; }
+  else {
+    me.style.display = 'none';
+    mc.innerHTML = allCoins.map(c =>
+      `<div class="mkt-row">
+        <div class="coin-badge sm">${c.symbol.slice(0,3)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;">${c.name}
+            <span style="font-size:12px;color:var(--text2);"> ${c.symbol}</span></div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${c.ownerIcon} ${c.ownerName}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:15px;font-weight:700;color:var(--gold-l);">${c.ownerBal.toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text3);">残高</div>
+        </div></div>`).join('');
+  }
+  // all txs
+  const tl = document.getElementById('mkt-tx'), te = document.getElementById('mkt-tx-empty');
+  if (DB.txs.length === 0) { tl.innerHTML = ''; te.style.display = 'block'; }
+  else {
+    te.style.display = 'none';
+    tl.innerHTML = DB.txs.slice(0, 40).map(tx => {
+      const from = getUser(tx.from), to = getUser(tx.to);
+      const icon = tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':'↔';
+      let lbl = '';
+      if (tx.type === 'mint') lbl = `${to?.name||'?'} が ${tx.amount} ${tx.coin} を発行`;
+      else if (tx.type === 'mission') lbl = `${to?.name||'?'} がミッション達成 +${tx.amount} ${tx.coin}`;
+      else lbl = `${from?.name||'?'} → ${to?.name||'?'}：${tx.amount} ${tx.coin}${tx.memo?' 「'+tx.memo+'」':''}`;
+      return `<div class="feed-item">
+        <div style="font-size:18px;flex-shrink:0;">${icon}</div>
+        <div><div class="feed-text">${lbl}</div><div class="feed-time">${timeAgo(tx.time)}</div></div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderProfile(u) {
+  document.getElementById('prof-avatar').textContent = u.icon || '😊';
+  document.getElementById('prof-name').textContent = u.name;
+  document.getElementById('prof-handle').textContent = '@' + u.handle;
+  document.getElementById('prof-coins').textContent = myCoins(u.id).length;
+  document.getElementById('prof-txc').textContent = DB.txs.filter(t => t.from===u.id||t.to===u.id).length;
+  const mc = DB.missions.filter(m => m.completedBy.includes(u.id)).length;
+  document.getElementById('prof-mc').textContent = mc;
+  const total = DB.missions.length;
+  const pct = total > 0 ? Math.round(mc / total * 100) : 0;
+  document.getElementById('prof-rate').textContent = pct + '%';
+  document.getElementById('prof-bar').style.width = pct + '%';
+}
+
+function renderNotifs() {
+  const u = me();
+  const ns = u ? (DB.notifs[u.id] || []) : [];
+  const nl = document.getElementById('notif-list'), ne = document.getElementById('notif-empty');
+  if (ns.length === 0) { nl.innerHTML = ''; ne.style.display = 'block'; return; }
+  ne.style.display = 'none';
+  nl.innerHTML = ns.slice(0, 20).map(n =>
+    `<div class="list-item">
+      <div class="avatar" style="font-size:20px;">${n.icon}</div>
+      <div class="list-item-info">
+        <p style="font-size:14px;color:var(--text);line-height:1.4;">${n.text}</p>
+        <p style="font-size:12px;color:var(--text3);margin-top:3px;">${timeAgo(n.time)}</p>
+      </div></div>`).join('');
+}
+
+function renderSettingsUsers() {
+  document.getElementById('settings-users').innerHTML = DB.users.map(u =>
+    `<div class="list-item">
+      <div class="avatar" style="font-size:20px;">${u.icon}</div>
+      <div class="list-item-info"><h3>${u.name}</h3><p>@${u.handle}</p></div>
+      ${u.id === DB.currentUserId ? '<span class="tag active">使用中</span>' : ''}
+    </div>`).join('');
+}
+
+function renderMissionCoinSelect() {
+  const u = me(); if (!u) return;
+  const coins = myCoins(u.id);
+  document.getElementById('m-coin').innerHTML = coins.length === 0
+    ? '<option value="">先にコインを作成してください</option>'
+    : coins.map(c => `<option value="${c.symbol}">${c.symbol} — ${c.name} (残高:${bal(u.id,c.symbol)})</option>`).join('');
+}
+
+// ================================================================
+//  UI HELPERS
+// ================================================================
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+}
+
+function showModal(id) {
+  if (id === 'notif-modal') renderNotifs();
+  if (id === 'settings-modal') renderSettingsUsers();
+  if (id === 'create-mission-modal') renderMissionCoinSelect();
+  if (id === 'receive-modal') {
+    const u = me();
+    document.getElementById('recv-handle').textContent = u ? '@' + u.handle : '---';
+  }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeBg(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isErr ? 'var(--red)' : 'var(--green)';
+  t.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ================================================================
+//  PWA
+// ================================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ================================================================
+//  BOOT
+// ================================================================
+if (DB.currentUserId && DB.users.find(u => u.id === DB.currentUserId)) {
+  document.getElementById('user-select-screen').style.display = 'none';
+  renderAll();
+} else {
+  document.getElementById('user-select-screen').style.display = 'flex';
+  renderUserSelect();
+}
+</script>
+</body>
+</html>
