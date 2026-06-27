@@ -404,7 +404,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <div class="form-group"><label class="form-label">名前</label><input class="form-input" type="text" placeholder="例: さとし" id="nu-name"></div>
     <div class="form-group"><label class="form-label">アイコン（絵文字）</label><input class="form-input" type="text" placeholder="😊" id="nu-icon" maxlength="2"></div>
     <div class="form-group"><label class="form-label">ハンドル名（英数字）</label><input class="form-input" type="text" placeholder="satoshi" id="nu-handle"></div>
-    <div class="form-group"><label class="form-label">PIN（4桁）※後から設定もできます</label><input class="form-input" type="number" placeholder="----" id="nu-pin"></div>
+    <div class="form-group"><label class="form-label">PIN（4桁）※後から設定もできます</label><input class="form-input" type="tel" placeholder="----" id="nu-pin" maxlength="4" autocomplete="off"></div>
     <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="addUser()">追加する</button>
   </div>
 </div>
@@ -412,7 +412,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 <div class="modal-overlay" id="pin-setup-modal" onclick="closeBg(event,'pin-setup-modal')">
   <div class="modal"><div class="modal-handle"></div><h2>🔐 PIN設定・変更</h2>
     <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;">4桁のPINを設定するとログイン時に本人確認が必要になります。空欄で保存するとPINなしになります。</div>
-    <div class="form-group"><label class="form-label">新しいPIN（4桁）</label><input class="form-input" type="number" placeholder="空欄=PINなし" id="new-pin"></div>
+    <div class="form-group"><label class="form-label">新しいPIN（4桁）</label><input class="form-input" type="tel" placeholder="空欄=PINなし" id="new-pin" maxlength="4" autocomplete="off"></div>
     <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="savePin()">保存する</button>
   </div>
 </div>
@@ -656,7 +656,7 @@ async function addUser(){
   const name=document.getElementById('nu-name').value.trim();
   const icon=document.getElementById('nu-icon').value.trim()||'😊';
   const handle=document.getElementById('nu-handle').value.trim().replace(/\s/g,'')||name.toLowerCase();
-  const pinRaw=document.getElementById('nu-pin').value.trim();
+  const pinRaw=document.getElementById('nu-pin').value.replace(/\D/g,'').slice(0,4);
   if(!name){toast('名前を入力してください',true);return;}
   let pin_hash=null;
   if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
@@ -670,10 +670,10 @@ async function addUser(){
 
 async function savePin(){
   const u=me(); if(!u)return;
-  const pinRaw=document.getElementById('new-pin').value.trim();
+  const pinRaw=document.getElementById('new-pin').value.replace(/\D/g,'').slice(0,4);
   let pin_hash=null;
   if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
-  else if(pinRaw.length>0){toast('PINは4桁で入力してください',true);return;}
+  else if(pinRaw.length>0&&pinRaw.length<4){toast('PINは4桁で入力してください',true);return;}
   await sb.from('users').update({pin_hash}).eq('id',u.id);
   closeModal('pin-setup-modal'); document.getElementById('new-pin').value='';
   toast(pin_hash?'PINを設定しました':'PINを解除しました'); await loadUsers();
@@ -989,7 +989,7 @@ function renderNotifs(){
   nl.innerHTML=myNotifs.map(n=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+n.icon+'</div><div class="list-item-info"><p style="font-size:14px;color:var(--text);line-height:1.4;">'+n.message+'</p><p style="font-size:12px;color:var(--text3);margin-top:3px;">'+timeAgo(n.created_at)+'</p></div></div>').join('');
 }
 function renderSettingsUsers(){
-  document.getElementById('settings-users').innerHTML=allUsers.map(u=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+u.icon+'</div><div class="list-item-info"><h3>'+u.name+'</h3><p>@'+u.handle+(u.pin_hash?' 🔐':'')+'</p></div>'+(u.id===currentUserId?'<span style="font-size:12px;background:rgba(124,58,237,.2);color:var(--purple-l);border:1px solid var(--purple);padding:3px 10px;border-radius:20px;">使用中</span>':'')+'</div>').join('');
+  document.getElementById('settings-users').innerHTML=allUsers.map(u=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+u.icon+'</div><div class="list-item-info"><h3>'+u.name+'</h3><p>@'+u.handle+(u.pin_hash?' 🔐':'')+'</p></div>'+(u.id===currentUserId?'<span style="font-size:12px;background:rgba(124,58,237,.2);color:var(--purple-l);border:1px solid var(--purple);padding:3px 10px;border-radius:20px;">使用中</span>':'<button class="btn btn-sm btn-outline" onclick="closeModal(\'settings-modal\');tryLogin(\''+u.id+'\')">切替</button>')+'</div>').join('');
 }
 
 // UI
