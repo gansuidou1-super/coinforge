@@ -404,7 +404,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <div class="form-group"><label class="form-label">名前</label><input class="form-input" type="text" placeholder="例: さとし" id="nu-name"></div>
     <div class="form-group"><label class="form-label">アイコン（絵文字）</label><input class="form-input" type="text" placeholder="😊" id="nu-icon" maxlength="2"></div>
     <div class="form-group"><label class="form-label">ハンドル名（英数字）</label><input class="form-input" type="text" placeholder="satoshi" id="nu-handle"></div>
-    <div class="form-group"><label class="form-label">PIN（4桁）※後から設定もできます</label><input class="form-input" type="tel" placeholder="----" id="nu-pin" maxlength="4" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">PIN（4桁）※後から設定もできます</label><input class="form-input" type="tel" placeholder="----" id="nu-pin" maxlength="4" autocomplete="new-password" data-role="pin"></div>
     <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="addUser()">追加する</button>
   </div>
 </div>
@@ -412,7 +412,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 <div class="modal-overlay" id="pin-setup-modal" onclick="closeBg(event,'pin-setup-modal')">
   <div class="modal"><div class="modal-handle"></div><h2>🔐 PIN設定・変更</h2>
     <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;">4桁のPINを設定するとログイン時に本人確認が必要になります。空欄で保存するとPINなしになります。</div>
-    <div class="form-group"><label class="form-label">新しいPIN（4桁）</label><input class="form-input" type="tel" placeholder="空欄=PINなし" id="new-pin" maxlength="4" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">新しいPIN（4桁）</label><input class="form-input" type="tel" placeholder="空欄=PINなし" id="new-pin" maxlength="4" autocomplete="new-password" data-role="pin"></div>
     <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="savePin()">保存する</button>
   </div>
 </div>
@@ -544,6 +544,26 @@ select.form-input option{background:var(--card2);color:var(--text);}
   </div>
 </div>
 
+
+<div class="modal-overlay" id="edit-exchange-modal" onclick="closeBg(event,'edit-exchange-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>交換メニューを編集</h2>
+    <input type="hidden" id="edit-ex-id">
+    <div class="form-group"><label class="form-label">メニュー名</label><input class="form-input" type="text" id="edit-ex-title"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" id="edit-ex-desc"></div>
+    <div class="form-group"><label class="form-label">必要コイン数</label><input class="form-input" type="number" id="edit-ex-cost" min="1"></div>
+    <div class="form-group"><label class="form-label">在庫数（空欄=無制限）</label><input class="form-input" type="number" id="edit-ex-stock" placeholder="無制限"></div>
+    <div class="form-group"><label class="form-label">公開状態</label>
+      <select class="form-input" id="edit-ex-active">
+        <option value="true">公開中</option>
+        <option value="false">非公開</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-danger" onclick="deleteExchangeItem()">削除</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveExchangeItem()">保存する</button>
+    </div>
+  </div>
+</div>
 </div>
 <script>
 const SB_URL='https://amdtzbmfpnmgivacdjia.supabase.co';
@@ -612,8 +632,10 @@ async function loadAll(){
   allExItems=ex.data||[]; allExOrders=eo.data||[];
 }
 
+let realtimeChannel=null;
 function setupRealtime(){
-  sb.channel('cf_'+currentUserId)
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+  realtimeChannel=sb.channel('cf_'+currentUserId)
     .on('postgres_changes',{event:'*',schema:'public',table:'wallets',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderAll);})
     .on('postgres_changes',{event:'*',schema:'public',table:'transactions',filter:'to_user_id=eq.'+currentUserId},()=>{loadAll().then(()=>{renderAll();toast('💰 新しい取引があります！');});})
     .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderNotifs);})
@@ -648,6 +670,7 @@ async function loginUser(id){
 }
 
 function goToUserSelect(){
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   currentUserId=null; localStorage.removeItem('cf_uid'); hide('loading-screen');
   loadUsers().then(()=>{renderUserSelect();document.getElementById('user-select-screen').style.display='flex';});
 }
@@ -965,7 +988,7 @@ function renderExShop(u){
   const myItems=allExItems.filter(x=>x.owner_id===u.id);
   const ml=document.getElementById('exchange-my'),me3=document.getElementById('exchange-my-empty');
   if(myItems.length===0){ml.innerHTML='';me3.style.display='block';}
-  else{me3.style.display='none';ml.innerHTML=myItems.map(item=>{const orders=allExOrders.filter(o=>o.item_id===item.id).length;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text3);">利用回数: '+orders+'回'+(item.stock!==null?' · 残在庫: '+item.stock:'')+'</p></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:15px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div></div></div>';}).join('');}
+  else{me3.style.display='none';ml.innerHTML=myItems.map(item=>{const orders=allExOrders.filter(o=>o.item_id===item.id).length;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+(item.is_active?'':' <span style="font-size:11px;color:var(--text3);">非公開</span>')+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text3);">利用回数: '+orders+'回'+(item.stock!==null?' · 残在庫: '+item.stock:'')+'</p></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:14px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div><button class="btn btn-sm btn-outline" style="margin-top:6px;" onclick="openEditExchange(\''+item.id+'\')" >✏ 編集</button></div></div>';}).join('');}
   const allItems=allExItems.filter(x=>x.owner_id!==u.id);
   const al=document.getElementById('exchange-all'),ae=document.getElementById('exchange-all-empty');
   if(allItems.length===0){al.innerHTML='';ae.style.display='block';}
@@ -1027,6 +1050,40 @@ function toast(msg,isErr=false){
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
+
+function openEditExchange(itemId){
+  const item=allExItems.find(x=>x.id===itemId); if(!item)return;
+  document.getElementById('edit-ex-id').value=item.id;
+  document.getElementById('edit-ex-title').value=item.title;
+  document.getElementById('edit-ex-desc').value=item.description||'';
+  document.getElementById('edit-ex-cost').value=item.coin_cost;
+  document.getElementById('edit-ex-stock').value=item.stock!==null?item.stock:'';
+  document.getElementById('edit-ex-active').value=item.is_active?'true':'false';
+  showModal('edit-exchange-modal');
+}
+async function saveExchangeItem(){
+  const id=document.getElementById('edit-ex-id').value;
+  const title=document.getElementById('edit-ex-title').value.trim();
+  const desc=document.getElementById('edit-ex-desc').value.trim();
+  const cost=parseInt(document.getElementById('edit-ex-cost').value);
+  const stockRaw=document.getElementById('edit-ex-stock').value.trim();
+  const isActive=document.getElementById('edit-ex-active').value==='true';
+  if(!title||!cost){toast('入力を確認してください',true);return;}
+  await sb.from('exchange_items').update({
+    title,description:desc,coin_cost:cost,
+    stock:stockRaw?parseInt(stockRaw):null,
+    is_active:isActive
+  }).eq('id',id);
+  closeModal('edit-exchange-modal');
+  toast('交換メニューを更新しました！'); await loadAll(); renderAll();
+}
+async function deleteExchangeItem(){
+  const id=document.getElementById('edit-ex-id').value;
+  if(!confirm('この交換メニューを削除しますか？'))return;
+  await sb.from('exchange_items').delete().eq('id',id);
+  closeModal('edit-exchange-modal');
+  toast('交換メニューを削除しました'); await loadAll(); renderAll();
+}
 async function boot(){
   show('loading-screen'); await loadUsers();
   if(currentUserId&&allUsers.find(u=>u.id===currentUserId)){
