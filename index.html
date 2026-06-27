@@ -256,8 +256,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
       <button class="btn btn-gold" onclick="openSendModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>送金
       </button>
-      <button class="btn btn-outline" onclick="showModal('receive-modal')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>受取
+      <button class="btn btn-outline" onclick="showModal('pay-request-modal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>請求
       </button>
     </div>
   </div>
@@ -305,8 +305,21 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <div id="comm-list"></div><div class="empty" id="comm-empty">コミュニティを作成してはじめよう</div>
   </div>
   <div class="section" style="padding-top:0;">
-    <div class="section-header"><span class="section-title">ミッション</span><button class="btn btn-sm btn-outline" onclick="showModal('create-mission-modal')">＋ 作成</button></div>
-    <div id="mission-list"></div><div class="empty" id="mission-empty">ミッションを作成してはじめよう</div>
+    <div class="section-header">
+      <span class="section-title">ミッション</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="showModal('propose-mission-modal')">💡 提案</button>
+        <button class="btn btn-sm btn-primary" onclick="showModal('create-mission-modal')">＋ 作成</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:12px;">
+      <button class="tab-btn active" id="mtab-public" onclick="switchMTab('public',this)" style="font-size:12px;padding:6px;">公開</button>
+      <button class="tab-btn" id="mtab-private" onclick="switchMTab('private',this)" style="font-size:12px;padding:6px;">専用</button>
+      <button class="tab-btn" id="mtab-proposal" onclick="switchMTab('proposal',this)" style="font-size:12px;padding:6px;">提案</button>
+      <button class="tab-btn" id="mtab-apply" onclick="switchMTab('apply',this)" style="font-size:12px;padding:6px;">申請</button>
+    </div>
+    <div id="mission-list"></div>
+    <div class="empty" id="mission-empty">ミッションを作成してはじめよう</div>
   </div>
   <div style="height:20px;"></div>
 </div>
@@ -564,6 +577,28 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" placeholder="達成条件" id="m-desc"></div>
     <div class="form-group"><label class="form-label">報酬コイン</label><select class="form-input" id="m-coin"></select></div>
     <div class="form-group"><label class="form-label">報酬数量</label><input class="form-input" type="number" placeholder="10" id="m-reward" min="1"></div>
+    <div class="form-group"><label class="form-label">公開設定</label>
+      <select class="form-input" id="m-visibility" onchange="toggleMissionTarget(this.value)">
+        <option value="public">全員公開</option>
+        <option value="private">特定ユーザー専用</option>
+      </select>
+    </div>
+    <div class="form-group" id="m-target-group" style="display:none;">
+      <label class="form-label">対象ユーザー</label>
+      <select class="form-input" id="m-target-user"></select>
+    </div>
+    <div class="form-group"><label class="form-label">繰り返し</label>
+      <select class="form-input" id="m-repeat">
+        <option value="false">単発（1回のみ）</option>
+        <option value="true">繰り返し可</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">承認方式</label>
+      <select class="form-input" id="m-approval">
+        <option value="self">利用者が申請 → 自分が承認</option>
+        <option value="owner">自分が直接完了マークする</option>
+      </select>
+    </div>
     <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="createMission()">作成する</button>
   </div>
 </div>
@@ -613,6 +648,92 @@ select.form-input option{background:var(--card2);color:var(--text);}
     </div>
   </div>
 </div>
+
+<!-- 請求モーダル -->
+<div class="modal-overlay" id="pay-request-modal" onclick="closeBg(event,'pay-request-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💸 請求する</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">相手に「払ってください」と通知します。相手が承認するとコインが移動します。</div>
+    <div class="form-group"><label class="form-label">請求先</label><select class="form-input" id="pr-to"></select></div>
+    <div class="form-group"><label class="form-label">コイン</label><select class="form-input" id="pr-coin"></select></div>
+    <div class="form-group"><label class="form-label">数量</label><input class="form-input" type="number" placeholder="100" id="pr-amount" min="1"></div>
+    <div class="form-group"><label class="form-label">メモ（理由など）</label><input class="form-input" type="text" placeholder="例: 4月分のおこづかい" id="pr-memo"></div>
+    <button class="btn btn-gold" style="width:100%;font-size:15px;padding:14px;" onclick="sendPayRequest()">請求を送る</button>
+  </div>
+</div>
+
+<!-- ミッション提案モーダル -->
+<div class="modal-overlay" id="propose-mission-modal" onclick="closeBg(event,'propose-mission-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💡 ミッションを提案する</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">コイン発行者に「こんなミッションをやりたい」と提案します。承認されるとミッションが追加されます。</div>
+    <div class="form-group"><label class="form-label">提案先（コイン発行者）</label><select class="form-input" id="prop-to"></select></div>
+    <div class="form-group"><label class="form-label">コイン</label><select class="form-input" id="prop-coin"></select></div>
+    <div class="form-group"><label class="form-label">やりたいこと</label><input class="form-input" type="text" placeholder="例: 毎朝ジョギング30分" id="prop-title"></div>
+    <div class="form-group"><label class="form-label">詳細</label><input class="form-input" type="text" placeholder="達成の証明方法など" id="prop-desc"></div>
+    <div class="form-group"><label class="form-label">希望報酬（参考）</label><input class="form-input" type="number" placeholder="10" id="prop-reward" min="0"></div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="sendProposal()">提案を送る</button>
+  </div>
+</div>
+
+<!-- 申請承認モーダル（発行者用） -->
+<div class="modal-overlay center" id="approve-app-modal" onclick="closeBg(event,'approve-app-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">✅ 申請を確認</h2>
+    <div id="approve-app-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" onclick="judgeApp('rejected')">却下</button>
+      <button class="btn btn-primary" onclick="judgeApp('approved')">承認してコイン付与</button>
+    </div>
+  </div>
+</div>
+
+<!-- 提案承認モーダル（発行者用） -->
+<div class="modal-overlay" id="approve-proposal-modal" onclick="closeBg(event,'approve-proposal-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💡 提案を承認する</h2>
+    <div id="approve-proposal-detail" style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;"></div>
+    <div class="form-group"><label class="form-label">ミッションタイトル（編集可）</label><input class="form-input" type="text" id="ap-title"></div>
+    <div class="form-group"><label class="form-label">報酬数量</label><input class="form-input" type="number" id="ap-reward" min="1"></div>
+    <div class="form-group"><label class="form-label">公開設定</label>
+      <select class="form-input" id="ap-visibility">
+        <option value="private">提案者専用（本人だけ見える）</option>
+        <option value="public">全員公開ミッションにする</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">繰り返し</label>
+      <select class="form-input" id="ap-repeat">
+        <option value="false">単発</option>
+        <option value="true">繰り返し可</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" onclick="judgeProposal('rejected')">却下</button>
+      <button class="btn btn-primary" onclick="judgeProposal('approved')">承認して作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 請求承認モーダル（支払い側） -->
+<div class="modal-overlay center" id="pay-confirm-modal" onclick="closeBg(event,'pay-confirm-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">💸 請求が届いています</h2>
+    <div id="pay-confirm-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.8;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" onclick="judgePayReq('rejected')">断る</button>
+      <button class="btn btn-gold" onclick="judgePayReq('paid')">支払う</button>
+    </div>
+  </div>
+</div>
+
+<!-- オーナー完了マーク（owner承認タイプ用） -->
+<div class="modal-overlay center" id="owner-complete-modal" onclick="closeBg(event,'owner-complete-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">🎯 ミッション完了にする</h2>
+    <div id="owner-complete-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" onclick="closeModal('owner-complete-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="ownerComplete()">完了にする</button>
+    </div>
+  </div>
+</div>
 </div>
 <script>
 const SB_URL='https://amdtzbmfpnmgivacdjia.supabase.co';
@@ -621,7 +742,8 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let currentUserId=localStorage.getItem('cf_uid')||null;
 let allUsers=[],myCoins=[],myWallets={},allTxs=[],allComms=[],allMissions=[],
-    allCompletions=[],myNotifs=[],allExItems=[],allExOrders=[];
+    allCompletions=[],myNotifs=[],allExItems=[],allExOrders=[],
+    allMissionApps=[],allProposals=[],allPayReqs=[];
 let pinBuf='',pinPendingId=null;
 let currentCoinOp=null,pendingExchange=null;
 
@@ -662,7 +784,7 @@ async function checkPin(){
 // LOAD
 async function loadAll(){
   const id=currentUserId;
-  const [u,c,w,t,co,m,mc,n,ex,eo]=await Promise.all([
+  const [u,c,w,t,co,m,mc,n,ex,eo,ma,mp,pr]=await Promise.all([
     sb.from('users').select('*').order('created_at'),
     sb.from('coins').select('*').eq('owner_id',id).order('created_at'),
     sb.from('wallets').select('*').eq('user_id',id),
@@ -673,12 +795,16 @@ async function loadAll(){
     sb.from('notifications').select('*').eq('user_id',id).order('created_at',{ascending:false}).limit(30),
     sb.from('exchange_items').select('*').eq('is_active',true).order('created_at'),
     sb.from('exchange_orders').select('*'),
+    sb.from('mission_applications').select('*'),
+    sb.from('mission_proposals').select('*').or('proposer_id.eq.'+id+',coin_owner_id.eq.'+id),
+    sb.from('payment_requests').select('*').or('requester_id.eq.'+id+',payer_id.eq.'+id),
   ]);
   allUsers=u.data||[]; myCoins=c.data||[];
   myWallets={}; (w.data||[]).forEach(r=>myWallets[r.coin_symbol]=r.balance);
   allTxs=t.data||[]; allComms=co.data||[]; allMissions=m.data||[];
   allCompletions=mc.data||[]; myNotifs=n.data||[];
   allExItems=ex.data||[]; allExOrders=eo.data||[];
+  allMissionApps=ma.data||[]; allProposals=mp.data||[]; allPayReqs=pr.data||[];
 }
 
 let realtimeChannel=null;
@@ -930,10 +1056,18 @@ async function createMission(){
   const u=me(); if(!u)return;
   const title=document.getElementById('m-title').value.trim(),sym=document.getElementById('m-coin').value;
   const reward=parseInt(document.getElementById('m-reward').value)||10;
+  const vis=document.getElementById('m-visibility').value;
+  const targetId=vis==='private'?document.getElementById('m-target-user').value:null;
+  const repeat=document.getElementById('m-repeat').value==='true';
+  const approval=document.getElementById('m-approval').value;
   if(!title||!sym){toast('入力を確認してください',true);return;}
-  await sb.from('missions').insert({id:uid(),owner_id:u.id,title,description:document.getElementById('m-desc').value.trim(),coin_symbol:sym,reward});
+  if(vis==='private'&&!targetId){toast('対象ユーザーを選んでください',true);return;}
+  await sb.from('missions').insert({id:uid(),owner_id:u.id,title,description:document.getElementById('m-desc').value.trim(),coin_symbol:sym,reward,target_user_id:targetId,is_repeatable:repeat,approval_type:approval,is_active:true});
+  if(targetId){
+    await sb.from('notifications').insert({id:uid(),user_id:targetId,icon:'🎯',message:u.name+'から専用ミッション「'+title+'」が届きました！'});
+  }
   closeModal('create-mission-modal');['m-title','m-desc','m-reward'].forEach(x=>document.getElementById(x).value='');
-  toast('ミッション「'+title+'」を作成しました！'); await loadAll(); renderAll();
+  toast('ミッション「'+title+'」を作成しました！'); await loadAll(); renderMissionTab();
 }
 async function completeMission(mId){
   const u=me(); if(!u)return;
@@ -1061,12 +1195,7 @@ async function renderMarketTab(){
   if(!txs||txs.length===0){tl.innerHTML='';te.style.display='block';}
   else{te.style.display='none';tl.innerHTML=txs.map(tx=>{const from=getUser(tx.from_user_id),to=getUser(tx.to_user_id);const icon=tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':tx.type==='exchange'?'🛍':'↔';let lbl='';if(tx.type==='mint')lbl=(to?.name||'?')+' が '+tx.amount+' '+tx.coin_symbol+' を発行';else if(tx.type==='mission')lbl=(to?.name||'?')+' がミッション達成 +'+tx.amount+' '+tx.coin_symbol;else if(tx.type==='exchange')lbl=(from?.name||'?')+' が交換 '+tx.amount+' '+tx.coin_symbol+'→'+(to?.name||'?');else lbl=(from?.name||'?')+' → '+(to?.name||'?')+'：'+tx.amount+' '+tx.coin_symbol+(tx.memo?' 「'+tx.memo+'」':'');return '<div class="feed-item"><div style="font-size:18px;flex-shrink:0;">'+icon+'</div><div><div class="feed-text">'+lbl+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';}).join('');}
 }
-function renderNotifs(){
-  const nl=document.getElementById('notif-list'),ne=document.getElementById('notif-empty');
-  if(myNotifs.length===0){nl.innerHTML='';ne.style.display='block';return;}
-  ne.style.display='none';
-  nl.innerHTML=myNotifs.map(n=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+n.icon+'</div><div class="list-item-info"><p style="font-size:14px;color:var(--text);line-height:1.4;">'+n.message+'</p><p style="font-size:12px;color:var(--text3);margin-top:3px;">'+timeAgo(n.created_at)+'</p></div></div>').join('');
-}
+function renderNotifs(){ renderNotifsWithActions(); }
 function renderSettingsUsers(){
   document.getElementById('settings-users').innerHTML=allUsers.map(u=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+u.icon+'</div><div class="list-item-info"><h3>'+u.name+'</h3><p>@'+u.handle+(u.pin_hash?' 🔐':'')+'</p></div>'+(u.id===currentUserId?'<span style="font-size:12px;background:rgba(124,58,237,.2);color:var(--purple-l);border:1px solid var(--purple);padding:3px 10px;border-radius:20px;">使用中</span>':'<button class="btn btn-sm btn-outline" onclick="closeModal(\'settings-modal\');tryLogin(\''+u.id+'\')">切替</button>')+'</div>').join('');
 }
@@ -1088,11 +1217,17 @@ function switchPTab(name,btn){
 function show(id){document.getElementById(id).style.display='flex';}
 function hide(id){document.getElementById(id).style.display='none';}
 function showModal(id){
-  if(id==='notif-modal')renderNotifs();
+  if(id==='notif-modal')renderNotifsWithActions();
   if(id==='settings-modal')renderSettingsUsers();
-  if(id==='create-mission-modal')renderMissionCoinSel();
+  if(id==='create-mission-modal'){
+    renderMissionCoinSel();
+    // 対象ユーザー選択肢を更新
+    const others=allUsers.filter(x=>x.id!==currentUserId);
+    document.getElementById('m-target-user').innerHTML=others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  }
   if(id==='create-exchange-modal')renderExCoinSel();
-  if(id==='receive-modal'){const u=me();document.getElementById('recv-handle').textContent=u?'@'+u.handle:'---';}
+  if(id==='propose-mission-modal')openProposeMissionModal();
+  if(id==='pay-request-modal')openPayRequestModal();
   document.getElementById(id).classList.add('open');
 }
 function openAddUserModal(){document.getElementById('add-user-modal').classList.add('open');}
@@ -1166,6 +1301,386 @@ function nuPinKey(d){
 function nuPinDel(){if(nuPinBuf.length>0){nuPinBuf=nuPinBuf.slice(0,-1);updNuDots();document.getElementById('nu-pin').value='';}}
 function nuPinClear(){nuPinBuf='';updNuDots();document.getElementById('nu-pin').value='';}
 function updNuDots(){for(let i=0;i<4;i++){const d=document.getElementById('nupd'+i);if(d){d.style.background=i<nuPinBuf.length?'var(--purple)':'';d.style.borderColor=i<nuPinBuf.length?'var(--purple)':'var(--border)';}}}
+
+// ── ミッションタブ切替 ──
+let currentMTab = 'public';
+function switchMTab(tab, btn){
+  currentMTab = tab;
+  document.querySelectorAll('[id^="mtab-"]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMissionTab();
+}
+
+// ── ミッション一覧レンダリング（タブ対応） ──
+function renderMissionTab(){
+  const u = me(); if(!u) return;
+  const el = document.getElementById('mission-list');
+  const em = document.getElementById('mission-empty');
+
+  if(currentMTab === 'public'){
+    // 全員公開ミッション
+    const list = allMissions.filter(m => !m.target_user_id && m.is_active);
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='公開ミッションがありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(m => renderMissionCard(m, u)).join('');
+
+  } else if(currentMTab === 'private'){
+    // 自分宛て専用ミッション OR 自分が作った専用ミッション
+    const list = allMissions.filter(m => m.target_user_id && m.is_active &&
+      (m.target_user_id === u.id || m.owner_id === u.id));
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='専用ミッションがありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(m => {
+      const target = getUser(m.target_user_id);
+      const isTarget = m.target_user_id === u.id;
+      const isOwner = m.owner_id === u.id;
+      return renderMissionCard(m, u, target, isOwner);
+    }).join('');
+
+  } else if(currentMTab === 'proposal'){
+    // 自分が送った提案 OR 自分宛の提案
+    const list = allProposals.filter(p => p.proposer_id===u.id || p.coin_owner_id===u.id);
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='提案がありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(p => {
+      const proposer = getUser(p.proposer_id);
+      const owner = getUser(p.coin_owner_id);
+      const isOwner = p.coin_owner_id === u.id;
+      const statusLabel = {pending:'審査中',approved_private:'承認済（専用）',approved_public:'承認済（公開）',rejected:'却下'}[p.status]||p.status;
+      const statusColor = p.status==='pending'?'var(--gold)':p.status.startsWith('approved')?'var(--green)':'var(--red)';
+      return `<div class="mission-card">
+        <div class="mission-reward"><div class="rew-n">${p.desired_reward}</div><div class="rew-s">${p.coin_symbol}</div></div>
+        <div class="mission-info">
+          <h3>${p.title}</h3>
+          <p>${p.description||''}</p>
+          <p style="margin-top:4px;">${isOwner?'💡 '+proposer?.name+'からの提案':'→ '+owner?.name+' へ提案'}</p>
+          <span style="font-size:11px;color:${statusColor};font-weight:600;">${statusLabel}</span>
+        </div>
+        ${isOwner && p.status==='pending' ? `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="openApproveProposal('${p.id}')">承認</button>` : ''}
+      </div>`;
+    }).join('');
+
+  } else if(currentMTab === 'apply'){
+    // 申請一覧：自分の申請 OR 自分のミッションへの申請
+    const myMissionIds = allMissions.filter(m=>m.owner_id===u.id).map(m=>m.id);
+    const list = allMissionApps.filter(a => a.applicant_id===u.id || myMissionIds.includes(a.mission_id));
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='申請がありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(a => {
+      const mission = allMissions.find(m=>m.id===a.mission_id);
+      const applicant = getUser(a.applicant_id);
+      const isOwner = myMissionIds.includes(a.mission_id);
+      const statusLabel = {pending:'審査中',approved:'承認済',rejected:'却下'}[a.status]||a.status;
+      const statusColor = a.status==='pending'?'var(--gold)':a.status==='approved'?'var(--green)':'var(--red)';
+      return `<div class="mission-card">
+        <div class="mission-reward"><div class="rew-n">${mission?.reward||'?'}</div><div class="rew-s">${mission?.coin_symbol||''}</div></div>
+        <div class="mission-info">
+          <h3>${mission?.title||'不明なミッション'}</h3>
+          <p>${a.note||''}</p>
+          <p style="margin-top:3px;font-size:12px;">${isOwner?'📩 '+applicant?.name+'が申請':'あなたの申請'}</p>
+          <span style="font-size:11px;color:${statusColor};font-weight:600;">${statusLabel}</span>
+        </div>
+        ${isOwner && a.status==='pending' ? `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="openApproveApp('${a.id}')">承認</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderMissionCard(m, u, target, isOwner){
+  const done = !m.is_repeatable && allCompletions.some(c=>c.mission_id===m.id&&c.user_id===u.id);
+  const owner = getUser(m.owner_id);
+  const isMyMission = m.owner_id === u.id;
+  const isTarget = !m.target_user_id || m.target_user_id === u.id;
+
+  // 申請済みかチェック
+  const applied = allMissionApps.some(a=>a.mission_id===m.id&&a.applicant_id===u.id&&a.status==='pending');
+
+  let actionBtn = '';
+  if(isMyMission && m.approval_type==='owner'){
+    // オーナーが直接完了マークするタイプ
+    actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;font-size:11px;" onclick="openOwnerComplete('${m.id}')">✓ 完了にする</button>`;
+  } else if(!isMyMission && isTarget && !done){
+    if(m.approval_type==='self'){
+      // 申請タイプ
+      if(applied){
+        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>申請中</button>`;
+      } else {
+        actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する</button>`;
+      }
+    } else {
+      // owner完了タイプは利用者側は待つだけ
+      actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>承認待ち</button>`;
+    }
+  } else if(done){
+    actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>✓ 達成済</button>`;
+  }
+
+  const targetLabel = m.target_user_id ? ` · 🔒 ${target?.name||getUser(m.target_user_id)?.name||'専用'}専用` : '';
+  const repeatLabel = m.is_repeatable ? ' · 🔄 繰返し' : '';
+
+  return `<div class="mission-card">
+    <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
+    <div class="mission-info">
+      <h3>${m.title}</h3>
+      <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
+    </div>
+    ${actionBtn}
+  </div>`;
+}
+
+// ── ミッション申請 ──
+async function applyMission(mId){
+  const u=me(); if(!u) return;
+  const note = prompt('申請コメント（任意）') || '';
+  await sb.from('mission_applications').insert({id:uid(),mission_id:mId,applicant_id:u.id,note,status:'pending'});
+  const m = allMissions.find(x=>x.id===mId);
+  await sb.from('notifications').insert({id:uid(),user_id:m.owner_id,icon:'📩',message:u.name+'が「'+m.title+'」に申請しました'});
+  toast('申請を送りました！'); await loadAll(); renderMissionTab();
+}
+
+// ── 申請承認（発行者） ──
+let pendingAppId = null;
+function openApproveApp(appId){
+  pendingAppId = appId;
+  const a = allMissionApps.find(x=>x.id===appId);
+  const m = allMissions.find(x=>x.id===a?.mission_id);
+  const applicant = getUser(a?.applicant_id);
+  document.getElementById('approve-app-detail').innerHTML =
+    `<strong>${applicant?.name||'?'}</strong> が<br>「${m?.title||'?'}」に申請<br><br>`+
+    `報酬: <strong>${m?.reward} ${m?.coin_symbol}</strong><br>`+
+    (a?.note?`コメント: 「${a.note}」`:'');
+  showModal('approve-app-modal');
+}
+
+async function judgeApp(verdict){
+  const u=me(); if(!u||!pendingAppId) return;
+  const a = allMissionApps.find(x=>x.id===pendingAppId);
+  const m = allMissions.find(x=>x.id===a?.mission_id);
+  await sb.from('mission_applications').update({status:verdict,updated_at:new Date().toISOString()}).eq('id',pendingAppId);
+  if(verdict==='approved' && m){
+    // コイン付与
+    const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',m.owner_id).eq('coin_symbol',m.coin_symbol).single();
+    if(ow && ow.balance>=m.reward){
+      await sb.from('wallets').upsert({id:uid(),user_id:m.owner_id,coin_symbol:m.coin_symbol,balance:ow.balance-m.reward},{onConflict:'user_id,coin_symbol'});
+      const{data:uw}=await sb.from('wallets').select('balance').eq('user_id',a.applicant_id).eq('coin_symbol',m.coin_symbol).single();
+      await sb.from('wallets').upsert({id:uid(),user_id:a.applicant_id,coin_symbol:m.coin_symbol,balance:(uw?.balance||0)+m.reward},{onConflict:'user_id,coin_symbol'});
+      await sb.from('transactions').insert({id:uid(),from_user_id:m.owner_id,to_user_id:a.applicant_id,coin_symbol:m.coin_symbol,amount:m.reward,memo:'ミッション承認: '+m.title,type:'mission'});
+      // 繰り返し不可なら completion記録
+      if(!m.is_repeatable) await sb.from('mission_completions').insert({id:uid(),mission_id:m.id,user_id:a.applicant_id});
+    }
+    await sb.from('notifications').insert({id:uid(),user_id:a.applicant_id,icon:'🎯',message:'「'+m.title+'」の申請が承認されました！+'+m.reward+' '+m.coin_symbol});
+  } else if(verdict==='rejected' && m){
+    await sb.from('notifications').insert({id:uid(),user_id:a.applicant_id,icon:'❌',message:'「'+m.title+'」の申請が却下されました'});
+  }
+  closeModal('approve-app-modal'); pendingAppId=null;
+  toast(verdict==='approved'?'承認してコインを付与しました':'申請を却下しました');
+  await loadAll(); renderMissionTab();
+}
+
+// ── オーナー直接完了マーク ──
+let pendingOwnerComplete = null;
+function openOwnerComplete(mId){
+  pendingOwnerComplete = mId;
+  const m = allMissions.find(x=>x.id===mId);
+  const others = allUsers.filter(u=>u.id!==currentUserId);
+  // 対象ユーザー選択
+  document.getElementById('owner-complete-detail').innerHTML =
+    `「${m?.title}」を誰の達成にしますか？<br><br>`+
+    `<select class="form-input" id="owner-complete-user" style="margin-top:8px;">`+
+    (m?.target_user_id
+      ? `<option value="${m.target_user_id}">${getUser(m.target_user_id)?.name||'?'}</option>`
+      : others.map(u=>`<option value="${u.id}">${u.icon} ${u.name}</option>`).join(''))+
+    `</select>`;
+  showModal('owner-complete-modal');
+}
+
+async function ownerComplete(){
+  const u=me(); if(!u||!pendingOwnerComplete) return;
+  const mId=pendingOwnerComplete;
+  const m=allMissions.find(x=>x.id===mId);
+  const targetId=document.getElementById('owner-complete-user')?.value;
+  if(!targetId||!m){toast('エラー',true);return;}
+  const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',m.owner_id).eq('coin_symbol',m.coin_symbol).single();
+  if(!ow||ow.balance<m.reward){toast('報酬コインの残高が不足しています',true);return;}
+  await sb.from('wallets').upsert({id:uid(),user_id:m.owner_id,coin_symbol:m.coin_symbol,balance:ow.balance-m.reward},{onConflict:'user_id,coin_symbol'});
+  const{data:uw}=await sb.from('wallets').select('balance').eq('user_id',targetId).eq('coin_symbol',m.coin_symbol).single();
+  await sb.from('wallets').upsert({id:uid(),user_id:targetId,coin_symbol:m.coin_symbol,balance:(uw?.balance||0)+m.reward},{onConflict:'user_id,coin_symbol'});
+  await sb.from('transactions').insert({id:uid(),from_user_id:m.owner_id,to_user_id:targetId,coin_symbol:m.coin_symbol,amount:m.reward,memo:'ミッション達成: '+m.title,type:'mission'});
+  if(!m.is_repeatable) await sb.from('mission_completions').insert({id:uid(),mission_id:mId,user_id:targetId});
+  await sb.from('notifications').insert({id:uid(),user_id:targetId,icon:'🎯',message:'「'+m.title+'」達成！+'+m.reward+' '+m.coin_symbol});
+  closeModal('owner-complete-modal'); pendingOwnerComplete=null;
+  toast('ミッション完了としてコインを付与しました！'); await loadAll(); renderAll();
+}
+
+// ── ミッション提案 ──
+function openProposeMissionModal(){
+  const u=me(); if(!u) return;
+  // コイン発行者一覧（自分以外）
+  const coinOwners=[...new Set(
+    allUsers.filter(x=>x.id!==u.id && (allMissions.some(m=>m.owner_id===x.id)||allExItems.some(e=>e.owner_id===x.id)||true))
+  )];
+  document.getElementById('prop-to').innerHTML = allUsers.filter(x=>x.id!==u.id)
+    .map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  // コイン一覧（全員のコイン）
+  const allC = allUsers.flatMap(uu=>(allMissions.filter(m=>m.owner_id===uu.id).map(m=>m.coin_symbol)));
+  const uniqueSymbols=[...new Set(allMissions.map(m=>m.coin_symbol))];
+  document.getElementById('prop-coin').innerHTML = uniqueSymbols.length>0
+    ? uniqueSymbols.map(s=>`<option value="${s}">${s}</option>`).join('')
+    : '<option value="">（コインが存在しません）</option>';
+  showModal('propose-mission-modal');
+}
+
+async function sendProposal(){
+  const u=me(); if(!u) return;
+  const toId=document.getElementById('prop-to').value;
+  const sym=document.getElementById('prop-coin').value;
+  const title=document.getElementById('prop-title').value.trim();
+  const desc=document.getElementById('prop-desc').value.trim();
+  const reward=parseInt(document.getElementById('prop-reward').value)||0;
+  if(!toId||!sym||!title){toast('入力を確認してください',true);return;}
+  await sb.from('mission_proposals').insert({id:uid(),proposer_id:u.id,coin_owner_id:toId,coin_symbol:sym,title,description:desc,desired_reward:reward,status:'pending'});
+  await sb.from('notifications').insert({id:uid(),user_id:toId,icon:'💡',message:u.name+'からミッション提案「'+title+'」が届きました'});
+  closeModal('propose-mission-modal');
+  ['prop-title','prop-desc','prop-reward'].forEach(x=>document.getElementById(x).value='');
+  toast('提案を送りました！'); await loadAll(); renderMissionTab();
+}
+
+// ── 提案承認 ──
+let pendingProposalId=null;
+function openApproveProposal(propId){
+  pendingProposalId=propId;
+  const p=allProposals.find(x=>x.id===propId);
+  const proposer=getUser(p?.proposer_id);
+  document.getElementById('approve-proposal-detail').innerHTML=
+    `<strong>${proposer?.name||'?'}</strong> からの提案<br>「${p?.title}」<br>${p?.description||''}<br>希望報酬: ${p?.desired_reward} ${p?.coin_symbol}`;
+  document.getElementById('ap-title').value=p?.title||'';
+  document.getElementById('ap-reward').value=p?.desired_reward||10;
+  showModal('approve-proposal-modal');
+}
+
+async function judgeProposal(verdict){
+  const u=me(); if(!u||!pendingProposalId) return;
+  const p=allProposals.find(x=>x.id===pendingProposalId);
+  if(verdict==='approved'){
+    const title=document.getElementById('ap-title').value.trim();
+    const reward=parseInt(document.getElementById('ap-reward').value)||10;
+    const vis=document.getElementById('ap-visibility').value;
+    const repeat=document.getElementById('ap-repeat').value==='true';
+    const targetId=vis==='private'?p.proposer_id:null;
+    await sb.from('missions').insert({id:uid(),owner_id:u.id,title,description:p.description||'',coin_symbol:p.coin_symbol,reward,target_user_id:targetId,is_repeatable:repeat,approval_type:'self',is_active:true});
+    await sb.from('mission_proposals').update({status:vis==='private'?'approved_private':'approved_public'}).eq('id',pendingProposalId);
+    await sb.from('notifications').insert({id:uid(),user_id:p.proposer_id,icon:'✅',message:'提案「'+title+'」が承認されました！ミッションに追加されました'});
+    toast('提案を承認してミッションを作成しました！');
+  } else {
+    await sb.from('mission_proposals').update({status:'rejected'}).eq('id',pendingProposalId);
+    await sb.from('notifications').insert({id:uid(),user_id:p.proposer_id,icon:'❌',message:'提案「'+p.title+'」が却下されました'});
+    toast('提案を却下しました');
+  }
+  closeModal('approve-proposal-modal'); pendingProposalId=null;
+  await loadAll(); renderMissionTab();
+}
+
+// ── 請求機能 ──
+function openPayRequestModal(){
+  const u=me(); if(!u) return;
+  const others=allUsers.filter(x=>x.id!==u.id);
+  document.getElementById('pr-to').innerHTML=others.length===0
+    ?'<option value="">（他のユーザーがいません）</option>'
+    :others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  // 全コイン（自分のウォレットにあるもの）
+  const allSymbols=[...new Set(Object.keys(myWallets))];
+  document.getElementById('pr-coin').innerHTML=allSymbols.length===0
+    ?'<option value="">（コインがありません）</option>'
+    :allSymbols.map(s=>`<option value="${s}">${s}</option>`).join('');
+  showModal('pay-request-modal');
+}
+
+async function sendPayRequest(){
+  const u=me(); if(!u) return;
+  const toId=document.getElementById('pr-to').value;
+  const sym=document.getElementById('pr-coin').value;
+  const amount=parseInt(document.getElementById('pr-amount').value);
+  const memo=document.getElementById('pr-memo').value.trim();
+  if(!toId||!sym||!amount||amount<1){toast('入力を確認してください',true);return;}
+  const toUser=getUser(toId);
+  await sb.from('payment_requests').insert({id:uid(),requester_id:u.id,payer_id:toId,coin_symbol:sym,amount,memo,status:'pending'});
+  await sb.from('notifications').insert({id:uid(),user_id:toId,icon:'💸',message:u.name+'から'+amount+' '+sym+'の請求が届きました'+(memo?' 「'+memo+'」':'')});
+  closeModal('pay-request-modal');
+  ['pr-amount','pr-memo'].forEach(x=>document.getElementById(x).value='');
+  toast((toUser?.name||'?')+'に請求を送りました！'); await loadAll(); renderAll();
+}
+
+// 通知から請求を開く
+let pendingPayReqId=null;
+function openPayConfirm(reqId){
+  pendingPayReqId=reqId;
+  const r=allPayReqs.find(x=>x.id===reqId);
+  const requester=getUser(r?.requester_id);
+  document.getElementById('pay-confirm-detail').innerHTML=
+    `<strong>${requester?.name||'?'}</strong> からの請求<br><br>`+
+    `<strong style="font-size:20px;">${r?.amount} ${r?.coin_symbol}</strong><br><br>`+
+    (r?.memo?`「${r.memo}」`:'');
+  showModal('pay-confirm-modal');
+}
+
+async function judgePayReq(verdict){
+  const u=me(); if(!u||!pendingPayReqId) return;
+  const r=allPayReqs.find(x=>x.id===pendingPayReqId);
+  if(!r){closeModal('pay-confirm-modal');return;}
+  if(verdict==='paid'){
+    const b=myBal(r.coin_symbol);
+    if(b<r.amount){toast('残高が不足しています（'+b+' '+r.coin_symbol+'）',true);return;}
+    await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:r.coin_symbol,balance:b-r.amount},{onConflict:'user_id,coin_symbol'});
+    const{data:rw}=await sb.from('wallets').select('balance').eq('user_id',r.requester_id).eq('coin_symbol',r.coin_symbol).single();
+    await sb.from('wallets').upsert({id:uid(),user_id:r.requester_id,coin_symbol:r.coin_symbol,balance:(rw?.balance||0)+r.amount},{onConflict:'user_id,coin_symbol'});
+    await sb.from('transactions').insert({id:uid(),from_user_id:u.id,to_user_id:r.requester_id,coin_symbol:r.coin_symbol,amount:r.amount,memo:'請求支払: '+(r.memo||''),type:'send'});
+    await sb.from('notifications').insert({id:uid(),user_id:r.requester_id,icon:'✅',message:u.name+'が'+r.amount+' '+r.coin_symbol+'を支払いました'+(r.memo?' 「'+r.memo+'」':'')});
+    toast('支払いました！');
+  } else {
+    await sb.from('notifications').insert({id:uid(),user_id:r.requester_id,icon:'❌',message:u.name+'が請求を断りました'+(r.memo?' 「'+r.memo+'」':'')});
+    toast('請求を断りました');
+  }
+  await sb.from('payment_requests').update({status:verdict}).eq('id',pendingPayReqId);
+  closeModal('pay-confirm-modal'); pendingPayReqId=null;
+  await loadAll(); renderAll();
+}
+
+// 通知一覧に請求への対応ボタンを追加
+function renderNotifsWithActions(){
+  const nl=document.getElementById('notif-list'),ne=document.getElementById('notif-empty');
+  if(myNotifs.length===0){nl.innerHTML='';ne.style.display='block';return;}
+  ne.style.display='none';
+  nl.innerHTML=myNotifs.map(n=>{
+    // 対応する請求を探す
+    const payReq=allPayReqs.find(r=>r.payer_id===currentUserId&&r.status==='pending'&&
+      n.message.includes(r.amount+' '+r.coin_symbol)&&n.message.includes('請求'));
+    const appReq=allMissionApps.find(a=>{
+      const m=allMissions.find(x=>x.id===a.mission_id);
+      return m?.owner_id===currentUserId&&a.status==='pending'&&n.message.includes('申請');
+    });
+    const propReq=allProposals.find(p=>p.coin_owner_id===currentUserId&&p.status==='pending'&&n.message.includes('提案'));
+    let actionHtml='';
+    if(payReq) actionHtml=`<button class="btn btn-sm btn-gold" style="margin-top:6px;" onclick="openPayConfirm('${payReq.id}')">対応する</button>`;
+    else if(appReq) actionHtml=`<button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="openApproveApp('${appReq.id}')">承認する</button>`;
+    else if(propReq) actionHtml=`<button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="openApproveProposal('${propReq.id}')">承認する</button>`;
+    return `<div class="list-item" style="flex-direction:column;align-items:flex-start;">
+      <div style="display:flex;align-items:center;gap:12px;width:100%;">
+        <div class="avatar" style="font-size:20px;">${n.icon}</div>
+        <div class="list-item-info">
+          <p style="font-size:14px;color:var(--text);line-height:1.4;">${n.message}</p>
+          <p style="font-size:12px;color:var(--text3);margin-top:3px;">${timeAgo(n.created_at)}</p>
+        </div>
+      </div>
+      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── createMission 拡張 ──
+function toggleMissionTarget(v){
+  document.getElementById('m-target-group').style.display=v==='private'?'block':'none';
+}
+
 async function boot(){
   show('loading-screen'); await loadUsers();
   if(currentUserId&&allUsers.find(u=>u.id===currentUserId)){
