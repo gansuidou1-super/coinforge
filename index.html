@@ -404,16 +404,65 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <div class="form-group"><label class="form-label">名前</label><input class="form-input" type="text" placeholder="例: さとし" id="nu-name"></div>
     <div class="form-group"><label class="form-label">アイコン（絵文字）</label><input class="form-input" type="text" placeholder="😊" id="nu-icon" maxlength="2"></div>
     <div class="form-group"><label class="form-label">ハンドル名（英数字）</label><input class="form-input" type="text" placeholder="satoshi" id="nu-handle"></div>
-    <div class="form-group"><label class="form-label">PIN（4桁）※後から設定もできます</label><input class="form-input" type="tel" placeholder="----" id="nu-pin" maxlength="4" autocomplete="new-password" data-role="pin"></div>
+    <input type="hidden" id="nu-pin" value="">
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:500;">PIN（4桁）※後から設定もできます</div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:10px;">
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd0"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd1"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd2"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd3"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto;">
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('1')">1</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('2')">2</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('3')">3</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('4')">4</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('5')">5</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('6')">6</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('7')">7</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('8')">8</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('9')">9</button>
+        <button class="pin-key" style="padding:14px;font-size:12px;color:var(--text2);" onclick="nuPinClear()">なし</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('0')">0</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinDel()">⌫</button>
+      </div>
+    </div>
     <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="addUser()">追加する</button>
   </div>
 </div>
 
 <div class="modal-overlay" id="pin-setup-modal" onclick="closeBg(event,'pin-setup-modal')">
   <div class="modal"><div class="modal-handle"></div><h2>🔐 PIN設定・変更</h2>
-    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;">4桁のPINを設定するとログイン時に本人確認が必要になります。空欄で保存するとPINなしになります。</div>
-    <div class="form-group"><label class="form-label">新しいPIN（4桁）</label><input class="form-input" type="tel" placeholder="空欄=PINなし" id="new-pin" maxlength="4" autocomplete="new-password" data-role="pin"></div>
-    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="savePin()">保存する</button>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;">4桁のPINを設定するとログイン時に本人確認が必要になります。</div>
+    <input type="hidden" id="new-pin" value="">
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;" id="setup-pin-label">新しいPINを入力してください</div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:16px;" id="setup-pin-dots">
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd0"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd1"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd2"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd3"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:260px;margin:0 auto 16px;">
+        <button class="pin-key" onclick="setupPinKey('1')">1</button>
+        <button class="pin-key" onclick="setupPinKey('2')">2</button>
+        <button class="pin-key" onclick="setupPinKey('3')">3</button>
+        <button class="pin-key" onclick="setupPinKey('4')">4</button>
+        <button class="pin-key" onclick="setupPinKey('5')">5</button>
+        <button class="pin-key" onclick="setupPinKey('6')">6</button>
+        <button class="pin-key" onclick="setupPinKey('7')">7</button>
+        <button class="pin-key" onclick="setupPinKey('8')">8</button>
+        <button class="pin-key" onclick="setupPinKey('9')">9</button>
+        <button class="pin-key" onclick="setupPinClear()" style="font-size:13px;color:var(--text2);">クリア</button>
+        <button class="pin-key" onclick="setupPinKey('0')">0</button>
+        <button class="pin-key" onclick="setupPinDel()">⌫</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-danger" onclick="clearPin()">PINを解除</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="savePin()">保存する</button>
+    </div>
   </div>
 </div>
 
@@ -679,7 +728,7 @@ async function addUser(){
   const name=document.getElementById('nu-name').value.trim();
   const icon=document.getElementById('nu-icon').value.trim()||'😊';
   const handle=document.getElementById('nu-handle').value.trim().replace(/\s/g,'')||name.toLowerCase();
-  const pinRaw=document.getElementById('nu-pin').value.replace(/\D/g,'').slice(0,4);
+  const pinRaw=nuPinBuf.slice(0,4);
   if(!name){toast('名前を入力してください',true);return;}
   let pin_hash=null;
   if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
@@ -687,18 +736,25 @@ async function addUser(){
   const{error}=await sb.from('users').insert({id,name,icon,handle,pin_hash});
   if(error){toast('エラー: '+(error.message.includes('unique')?'そのハンドル名は使われています':error.message),true);return;}
   closeModal('add-user-modal');
-  ['nu-name','nu-icon','nu-handle','nu-pin'].forEach(x=>document.getElementById(x).value='');
+  ['nu-name','nu-icon','nu-handle','nu-pin'].forEach(x=>document.getElementById(x).value=''); nuPinBuf=''; updNuDots();
   toast(name+' を追加しました！'); await loadUsers(); renderUserSelect();
 }
 
 async function savePin(){
   const u=me(); if(!u)return;
-  const pinRaw=document.getElementById('new-pin').value.replace(/\D/g,'').slice(0,4);
+  const raw=document.getElementById('new-pin').value;
   let pin_hash=null;
-  if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
-  else if(pinRaw.length>0&&pinRaw.length<4){toast('PINは4桁で入力してください',true);return;}
+  if(raw==='__clear__'){pin_hash=null;}
+  else{
+    const pinRaw=raw.replace(/\D/g,'').slice(0,4);
+    if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
+    else if(pinRaw.length>0&&pinRaw.length<4){toast('PINは4桁で入力してください',true);return;}
+  }
   await sb.from('users').update({pin_hash}).eq('id',u.id);
-  closeModal('pin-setup-modal'); document.getElementById('new-pin').value='';
+  closeModal('pin-setup-modal');
+  document.getElementById('new-pin').value='';
+  setupPinBuf=''; updSetupDots();
+  document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';
   toast(pin_hash?'PINを設定しました':'PINを解除しました'); await loadUsers();
 }
 
@@ -1084,6 +1140,32 @@ async function deleteExchangeItem(){
   closeModal('edit-exchange-modal');
   toast('交換メニューを削除しました'); await loadAll(); renderAll();
 }
+
+// セットアップPINキーパッド
+let setupPinBuf='';
+function setupPinKey(d){
+  if(setupPinBuf.length>=4)return;
+  setupPinBuf+=d; updSetupDots();
+  if(setupPinBuf.length===4){
+    document.getElementById('new-pin').value=setupPinBuf;
+    document.getElementById('setup-pin-label').textContent='✓ PIN入力完了（保存ボタンを押してください）';
+  }
+}
+function setupPinDel(){if(setupPinBuf.length>0){setupPinBuf=setupPinBuf.slice(0,-1);updSetupDots();document.getElementById('new-pin').value='';document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';}}
+function setupPinClear(){setupPinBuf='';updSetupDots();document.getElementById('new-pin').value='';document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';}
+function updSetupDots(){for(let i=0;i<4;i++){const d=document.getElementById('spd'+i);if(d){d.style.background=i<setupPinBuf.length?'var(--purple)':'';d.style.borderColor=i<setupPinBuf.length?'var(--purple)':'var(--border)';}}}
+function clearPin(){if(!confirm('PINを解除しますか？'))return;document.getElementById('new-pin').value='__clear__';savePin();}
+
+// 新規ユーザーPINキーパッド
+let nuPinBuf='';
+function nuPinKey(d){
+  if(nuPinBuf.length>=4)return;
+  nuPinBuf+=d; updNuDots();
+  if(nuPinBuf.length===4)document.getElementById('nu-pin').value=nuPinBuf;
+}
+function nuPinDel(){if(nuPinBuf.length>0){nuPinBuf=nuPinBuf.slice(0,-1);updNuDots();document.getElementById('nu-pin').value='';}}
+function nuPinClear(){nuPinBuf='';updNuDots();document.getElementById('nu-pin').value='';}
+function updNuDots(){for(let i=0;i<4;i++){const d=document.getElementById('nupd'+i);if(d){d.style.background=i<nuPinBuf.length?'var(--purple)':'';d.style.borderColor=i<nuPinBuf.length?'var(--purple)':'var(--border)';}}}
 async function boot(){
   show('loading-screen'); await loadUsers();
   if(currentUserId&&allUsers.find(u=>u.id===currentUserId)){
