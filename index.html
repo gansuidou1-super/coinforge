@@ -599,7 +599,10 @@ select.form-input option{background:var(--card2);color:var(--text);}
         <option value="owner">自分が直接完了マークする</option>
       </select>
     </div>
-    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="createMission()">作成する</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('create-mission-modal')">キャンセル</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="createMission()">作成する</button>
+    </div>
   </div>
 </div>
 
@@ -1226,14 +1229,31 @@ function showModal(id){
     document.getElementById('m-target-user').innerHTML=others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
   }
   if(id==='create-exchange-modal')renderExCoinSel();
-  if(id==='propose-mission-modal')openProposeMissionModal();
-  if(id==='pay-request-modal')openPayRequestModal();
+  if(id==='propose-mission-modal'){initProposeMissionModal();return;}
+  if(id==='pay-request-modal')initPayRequestModal();
   document.getElementById(id).classList.add('open');
 }
 function openAddUserModal(){document.getElementById('add-user-modal').classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function closeBg(e,id){if(e.target.classList.contains('modal-overlay'))closeModal(id);}
-function renderMissionCoinSel(){document.getElementById('m-coin').innerHTML=myCoins.length===0?'<option value="">先にコインを作成してください</option>':myCoins.map(c=>'<option value="'+c.symbol+'">'+c.symbol+' — '+c.name+' (残高:'+myBal(c.symbol)+')</option>').join('');}
+function renderMissionCoinSel(){
+  // 全ユーザーのコインを選択肢に（シンボルで重複除去）
+  const allCoinsMap={};
+  allUsers.forEach(u=>{
+    (allMissions.filter(m=>m.owner_id===u.id)||[]).forEach(m=>{
+      if(!allCoinsMap[m.coin_symbol]) allCoinsMap[m.coin_symbol]=m.coin_symbol;
+    });
+  });
+  // 自分のコインも必ず含む
+  myCoins.forEach(c=>{ allCoinsMap[c.symbol]=c.symbol+' — '+c.name; });
+  // 全walletのシンボルも含む
+  const extraSymbols=[...new Set(allMissions.map(m=>m.coin_symbol))];
+  extraSymbols.forEach(s=>{ if(!allCoinsMap[s]) allCoinsMap[s]=s; });
+  const opts=Object.entries(allCoinsMap);
+  document.getElementById('m-coin').innerHTML=opts.length===0
+    ?'<option value="">コインがありません</option>'
+    :opts.map(([sym,label])=>`<option value="${sym}">${label}</option>`).join('');
+}
 function toast(msg,isErr=false){
   const t=document.getElementById('toast');t.textContent=msg;
   t.style.borderColor=isErr?'var(--red)':'var(--green)';t.style.color=isErr?'var(--red)':'var(--green)';
@@ -1527,8 +1547,8 @@ function openProposeMissionModal(){
   document.getElementById('prop-coin').innerHTML = uniqueSymbols.length>0
     ? uniqueSymbols.map(s=>`<option value="${s}">${s}</option>`).join('')
     : '<option value="">（コインが存在しません）</option>';
-  showModal('propose-mission-modal');
 }
+function initProposeMissionModal(){ openProposeMissionModal(); document.getElementById('propose-mission-modal').classList.add('open'); }
 
 async function sendProposal(){
   const u=me(); if(!u) return;
@@ -1581,19 +1601,22 @@ async function judgeProposal(verdict){
 }
 
 // ── 請求機能 ──
-function openPayRequestModal(){
+function initPayRequestModal(){
   const u=me(); if(!u) return;
   const others=allUsers.filter(x=>x.id!==u.id);
   document.getElementById('pr-to').innerHTML=others.length===0
     ?'<option value="">（他のユーザーがいません）</option>'
     :others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
-  // 全コイン（自分のウォレットにあるもの）
-  const allSymbols=[...new Set(Object.keys(myWallets))];
+  // 全ユーザーのコイン（全シンボル）
+  const allSymbols=[...new Set(
+    allUsers.flatMap(uu=>Object.keys(myWallets))
+      .concat(allMissions.map(m=>m.coin_symbol))
+  )].filter(Boolean);
   document.getElementById('pr-coin').innerHTML=allSymbols.length===0
     ?'<option value="">（コインがありません）</option>'
     :allSymbols.map(s=>`<option value="${s}">${s}</option>`).join('');
-  showModal('pay-request-modal');
 }
+function openPayRequestModal(){ initPayRequestModal(); showModal('pay-request-modal'); }
 
 async function sendPayRequest(){
   const u=me(); if(!u) return;
