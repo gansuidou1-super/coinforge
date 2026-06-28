@@ -1981,7 +1981,7 @@ async function loginWithGoogle(){
   setAuthError('');
   const{error}=await sb.auth.signInWithOAuth({
     provider:'google',
-    options:{ redirectTo: window.location.href }
+    options:{ redirectTo: 'https://coinforge-sigma.vercel.app' }
   });
   if(error) setAuthError('Googleログインに失敗しました: '+error.message);
 }
@@ -2022,7 +2022,7 @@ async function signUp(){
 async function forgotPassword(){
   const email=prompt('パスワードリセット用のメールアドレスを入力してください');
   if(!email)return;
-  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://coinforge-sigma.vercel.app'});
   if(error){toast('エラー: '+error.message,true);}
   else{toast('パスワードリセットメールを送信しました！');}
 }
