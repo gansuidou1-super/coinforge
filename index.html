@@ -220,14 +220,66 @@ select.form-input option{background:var(--card2);color:var(--text);}
   </div>
 </div>
 
-<!-- User Select -->
-<div class="user-select-screen" id="user-select-screen">
+<!-- ログイン画面 -->
+<div class="user-select-screen" id="login-screen" style="display:none;">
   <div class="app-logo">C</div>
-  <h1 style="font-size:24px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--gold-l),var(--purple-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CoinForge</h1>
-  <p style="font-size:14px;color:var(--text2);margin-bottom:6px;">誰のアカウントで使いますか？</p>
-  <p style="font-size:12px;color:var(--text3);margin-bottom:24px;"><span class="realtime-dot"></span>リアルタイム同期中</p>
-  <div style="display:flex;gap:12px;width:100%;margin-bottom:20px;flex-wrap:wrap;" id="user-cards-row"></div>
-  <button class="btn btn-outline" style="width:100%;font-size:13px;" onclick="openAddUserModal()">＋ 新しいユーザーを追加</button>
+  <h1 style="font-size:26px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--gold-l),var(--purple-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CoinForge</h1>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:28px;">コミュニティ経済圏プラットフォーム</p>
+
+  <!-- Googleログイン -->
+  <button onclick="loginWithGoogle()" style="width:100%;background:#fff;color:#333;border:1px solid #ddd;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;">
+    <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Googleでログイン
+  </button>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+    <span style="font-size:12px;color:var(--text3);">または</span>
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+  </div>
+
+  <!-- メール/パスワード -->
+  <div id="login-form">
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input class="form-input" type="email" id="login-email" placeholder="example@gmail.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">パスワード</label>
+      <input class="form-input" type="password" id="login-password" placeholder="パスワード" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:10px;" onclick="loginWithEmail()">ログイン</button>
+    <button class="btn btn-outline" style="width:100%;padding:12px;font-size:13px;" onclick="showSignup()">アカウントを作成する</button>
+    <button onclick="forgotPassword()" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;margin-top:8px;padding:6px;">パスワードを忘れた方はこちら</button>
+  </div>
+
+  <!-- 新規登録フォーム（初期非表示） -->
+  <div id="signup-form" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" type="text" id="signup-name" placeholder="例: さとし" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン（絵文字）</label>
+      <input class="form-input" type="text" id="signup-icon" placeholder="😊" maxlength="2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ハンドル名（英数字）</label>
+      <input class="form-input" type="text" id="signup-handle" placeholder="satoshi" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input class="form-input" type="email" id="signup-email" placeholder="example@gmail.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">パスワード（6文字以上）</label>
+      <input class="form-input" type="password" id="signup-password" placeholder="パスワード" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:10px;" onclick="signUp()">登録する</button>
+    <button class="btn btn-outline" style="width:100%;padding:12px;font-size:13px;" onclick="showLogin()">ログイン画面に戻る</button>
+  </div>
+
+  <div id="auth-error" style="color:var(--red);font-size:13px;margin-top:12px;text-align:center;"></div>
 </div>
 
 <!-- HOME -->
@@ -235,7 +287,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
   <div class="header">
     <h1>CoinForge</h1>
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="user-chip" onclick="goToUserSelect()">
+      <div class="user-chip" onclick="showModal('settings-modal')">
         <span id="hdr-icon">😊</span><span id="hdr-name">---</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:13px;height:13px;stroke-width:2.5;"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -383,9 +435,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
       </div>
     </div>
     <div class="section" style="padding-top:0;">
-      <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('settings-modal')">⚙ 設定・ユーザー管理</button>
-      <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('pin-setup-modal')">🔐 PINを設定・変更する</button>
-      <button class="btn btn-danger" style="width:100%;" onclick="confirmDelete()">🗑 このユーザーのデータを削除</button>
+      <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('settings-modal')">⚙ アカウント設定</button>
+      <button class="btn btn-danger" style="width:100%;" onclick="confirmDelete()">🗑 アカウントを削除する</button>
     </div>
   </div>
   <!-- コイン管理 -->
@@ -624,9 +675,23 @@ select.form-input option{background:var(--card2);color:var(--text);}
 </div>
 
 <div class="modal-overlay" id="settings-modal" onclick="closeBg(event,'settings-modal')">
-  <div class="modal"><div class="modal-handle"></div><h2>ユーザー管理</h2>
-    <div id="settings-users"></div>
-    <button class="btn btn-outline" style="width:100%;margin-top:12px;" onclick="closeModal('settings-modal');openAddUserModal()">＋ ユーザーを追加</button>
+  <div class="modal"><div class="modal-handle"></div><h2>⚙ アカウント</h2>
+    <div id="settings-profile"></div>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-outline" style="width:100%;" onclick="showModal('change-password-modal');closeModal('settings-modal')">🔑 パスワードを変更する</button>
+      <button class="btn btn-danger" style="width:100%;" onclick="doSignOut()">🚪 ログアウト</button>
+    </div>
+  </div>
+</div>
+
+<!-- パスワード変更 -->
+<div class="modal-overlay" id="change-password-modal" onclick="closeBg(event,'change-password-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>🔑 パスワード変更</h2>
+    <div class="form-group">
+      <label class="form-label">新しいパスワード（6文字以上）</label>
+      <input class="form-input" type="password" id="new-password" placeholder="新しいパスワード" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="changePassword()">変更する</button>
   </div>
 </div>
 
@@ -1329,7 +1394,7 @@ function show(id){document.getElementById(id).style.display='flex';}
 function hide(id){document.getElementById(id).style.display='none';}
 function showModal(id){
   if(id==='notif-modal'){renderNotifsWithActions();markNotifsRead();}
-  if(id==='settings-modal')renderSettingsUsers();
+  if(id==='settings-modal')renderSettingsProfile();
   if(id==='create-mission-modal'){
     renderMissionCoinSel();
     // 対象ユーザー選択肢を更新
@@ -1893,11 +1958,171 @@ async function markNotifsRead(){
   document.getElementById('notif-badge').style.display='none';
 }
 
+// ── Supabase Auth ──
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display='flex';
+}
+function hideLoginScreen(){
+  document.getElementById('login-screen').style.display='none';
+}
+function showSignup(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('signup-form').style.display='block';
+  document.getElementById('auth-error').textContent='';
+}
+function showLogin(){
+  document.getElementById('signup-form').style.display='none';
+  document.getElementById('login-form').style.display='block';
+  document.getElementById('auth-error').textContent='';
+}
+function setAuthError(msg){ document.getElementById('auth-error').textContent=msg; }
+
+async function loginWithGoogle(){
+  setAuthError('');
+  const{error}=await sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{ redirectTo: window.location.href }
+  });
+  if(error) setAuthError('Googleログインに失敗しました: '+error.message);
+}
+
+async function loginWithEmail(){
+  setAuthError('');
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  if(!email||!password){setAuthError('メールとパスワードを入力してください');return;}
+  show('loading-screen');
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){hide('loading-screen');setAuthError(errorMsg(error));return;}
+  await onAuthSuccess(data.user);
+}
+
+async function signUp(){
+  setAuthError('');
+  const name=document.getElementById('signup-name').value.trim();
+  const icon=document.getElementById('signup-icon').value.trim()||'😊';
+  const handle=document.getElementById('signup-handle').value.trim().replace(/\s/g,'')||name.toLowerCase();
+  const email=document.getElementById('signup-email').value.trim();
+  const password=document.getElementById('signup-password').value;
+  if(!name||!email||!password){setAuthError('すべての項目を入力してください');return;}
+  if(password.length<6){setAuthError('パスワードは6文字以上にしてください');return;}
+  show('loading-screen');
+  const{data,error}=await sb.auth.signUp({email,password,options:{data:{name,icon,handle}}});
+  if(error){hide('loading-screen');setAuthError(errorMsg(error));return;}
+  // profileをusersテーブルに作成
+  if(data.user){
+    await sb.from('users').upsert({id:data.user.id,name,icon,handle,created_at:new Date().toISOString()},{onConflict:'id'});
+  }
+  hide('loading-screen');
+  setAuthError('');
+  toast('登録完了！メール確認後にログインできます。（確認メールが届かない場合はスパムフォルダを確認してください）');
+  showLogin();
+}
+
+async function forgotPassword(){
+  const email=prompt('パスワードリセット用のメールアドレスを入力してください');
+  if(!email)return;
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+  if(error){toast('エラー: '+error.message,true);}
+  else{toast('パスワードリセットメールを送信しました！');}
+}
+
+async function changePassword(){
+  const pw=document.getElementById('new-password').value;
+  if(!pw||pw.length<6){toast('6文字以上のパスワードを入力してください',true);return;}
+  const{error}=await sb.auth.updateUser({password:pw});
+  if(error){toast('エラー: '+error.message,true);}
+  else{closeModal('change-password-modal');toast('パスワードを変更しました！');}
+}
+
+async function doSignOut(){
+  if(!confirm('ログアウトしますか？'))return;
+  await sb.auth.signOut();
+  currentUserId=null;
+  allUsers=[]; myCoins=[]; myWallets={}; allTxs=[];
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+  hideLoginScreen();
+  showLoginScreen();
+}
+
+function errorMsg(error){
+  const m=error.message||'';
+  if(m.includes('Invalid login'))return 'メールアドレスまたはパスワードが違います';
+  if(m.includes('Email not confirmed'))return 'メールアドレスの確認が完了していません';
+  if(m.includes('already registered'))return 'このメールアドレスはすでに登録されています';
+  if(m.includes('unique'))return 'そのハンドル名はすでに使われています';
+  return m;
+}
+
+async function onAuthSuccess(user){
+  if(!user){hide('loading-screen');return;}
+  currentUserId = user.id;
+  localStorage.setItem('cf_uid', user.id);
+  // usersテーブルにプロフィールがなければ作成（Google初回ログイン）
+  const{data:existing}=await sb.from('users').select('id').eq('id',user.id).single();
+  if(!existing){
+    const meta=user.user_metadata||{};
+    const name=meta.full_name||meta.name||user.email?.split('@')[0]||'ユーザー';
+    const handle=(meta.preferred_username||name).toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20)||'user'+Date.now();
+    await sb.from('users').insert({id:user.id,name,icon:'😊',handle,created_at:new Date().toISOString()});
+  }
+  hideLoginScreen();
+  await loadAll();
+  hide('loading-screen');
+  setupRealtime();
+  renderAll();
+  switchTab('home');
+}
+
+// renderSettingsUsers → renderSettingsProfile に
+function renderSettingsProfile(){
+  const u=me(); if(!u) return;
+  const authUser = sb.auth.getUser ? null : null; // async
+  document.getElementById('settings-profile').innerHTML=`
+    <div class="list-item">
+      <div class="avatar" style="font-size:24px;">${u.icon||'😊'}</div>
+      <div class="list-item-info">
+        <h3>${u.name}</h3>
+        <p>@${u.handle}</p>
+      </div>
+    </div>`;
+}
+
+async function confirmDelete(){
+  const u=me(); if(!u)return;
+  if(!confirm(u.name+' のアカウントを完全に削除しますか？\nこの操作は元に戻せません。'))return;
+  await sb.from('users').delete().eq('id',u.id);
+  await sb.auth.signOut();
+  currentUserId=null;
+  showLoginScreen();
+}
+
+// Supabase Auth状態監視
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='SIGNED_IN'&&session?.user){
+    if(!currentUserId){
+      show('loading-screen');
+      await onAuthSuccess(session.user);
+    }
+  }else if(event==='SIGNED_OUT'){
+    currentUserId=null;
+    hide('loading-screen');
+    showLoginScreen();
+  }else if(event==='PASSWORD_RECOVERY'){
+    // パスワードリセット後
+    showModal('change-password-modal');
+  }
+});
+
 async function boot(){
-  show('loading-screen'); await loadUsers();
-  if(currentUserId&&allUsers.find(u=>u.id===currentUserId)){
-    hide('loading-screen'); await loginUser(currentUserId);
-  }else{hide('loading-screen');renderUserSelect();document.getElementById('user-select-screen').style.display='flex';}
+  show('loading-screen');
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user){
+    await onAuthSuccess(session.user);
+  }else{
+    hide('loading-screen');
+    showLoginScreen();
+  }
 }
 boot();
 </script>
