@@ -239,8 +239,9 @@ select.form-input option{background:var(--card2);color:var(--text);}
         <span id="hdr-icon">😊</span><span id="hdr-name">---</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:13px;height:13px;stroke-width:2.5;"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
-      <button onclick="showModal('notif-modal')" style="background:none;border:none;cursor:pointer;">
+      <button onclick="showModal('notif-modal')" style="background:none;border:none;cursor:pointer;position:relative;">
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:23px;height:23px;stroke-width:1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;width:9px;height:9px;background:var(--red);border-radius:50%;border:2px solid var(--bg);"></span>
       </button>
     </div>
   </div>
@@ -268,6 +269,10 @@ select.form-input option{background:var(--card2);color:var(--text);}
     </div>
     <div id="home-coins"></div>
     <div class="empty" id="home-coins-empty">コインを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;" id="home-notif-section" style="display:none;">
+    <div class="section-header"><span class="section-title">⚡ 対応が必要です</span></div>
+    <div id="home-action-list"></div>
   </div>
   <div class="section" style="padding-top:0;">
     <div class="section-header"><span class="section-title">最近の活動</span></div>
@@ -328,10 +333,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 <div class="screen" id="screen-market">
   <div class="header"><h1>マーケット</h1></div>
   <div class="section"><div class="info-box"><span class="realtime-dot"></span>リアルタイム同期中 — 全員の取引が即反映されます</div></div>
-  <div class="section" style="padding-top:0;">
-    <div class="section-header"><span class="section-title">全ユーザーのコイン</span></div>
-    <div id="mkt-coins"></div><div class="empty" id="mkt-coins-empty">まだコインがありません</div>
-  </div>
+
   <div class="section" style="padding-top:0;">
     <div class="section-header"><span class="section-title">全取引履歴</span></div>
     <div id="mkt-tx"></div><div class="empty" id="mkt-tx-empty">まだ取引がありません</div>
@@ -353,8 +355,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
   </div>
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchPTab('my',this)">マイページ</button>
-    <button class="tab-btn" onclick="switchPTab('coin',this)">コイン管理</button>
-    <button class="tab-btn" onclick="switchPTab('shop',this)">交換所</button>
+    <button class="tab-btn" id="ptab-btn-coin" onclick="switchPTab('coin',this)" style="display:none;">コイン管理</button>
+    <button class="tab-btn" id="ptab-btn-shop" onclick="switchPTab('shop',this)" style="display:none;">交換所</button>
   </div>
   <!-- マイページ -->
   <div class="tab-content active" id="ptab-my">
@@ -405,7 +407,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>ウォレット</button>
   <button class="nav-btn" id="nav-community" onclick="switchTab('community')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>コミュニティ</button>
-  <button class="nav-btn" id="nav-market" onclick="switchTab('market')">
+  <button class="nav-btn" id="nav-market" onclick="switchTab('market')" style="display:none;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>マーケット</button>
   <button class="nav-btn" id="nav-profile" onclick="switchTab('profile')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>プロフィール</button>
@@ -683,8 +685,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <h2 style="text-align:center;margin-bottom:12px;">✅ 申請を確認</h2>
     <div id="approve-app-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;text-align:center;"></div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-danger btn-sm" onclick="judgeApp('rejected')">却下</button>
-      <button class="btn btn-primary" onclick="judgeApp('approved')">承認してコイン付与</button>
+      <button class="btn btn-danger" onclick="judgeApp('rejected')" style="flex:1;">❌ 却下する</button>
+      <button class="btn btn-primary" onclick="judgeApp('approved')" style="flex:2;">✅ 承認・コイン付与</button>
     </div>
   </div>
 </div>
@@ -708,8 +710,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
       </select>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-danger btn-sm" onclick="judgeProposal('rejected')">却下</button>
-      <button class="btn btn-primary" onclick="judgeProposal('approved')">承認して作成</button>
+      <button class="btn btn-danger" onclick="judgeProposal('rejected')" style="flex:1;">❌ 却下する</button>
+      <button class="btn btn-primary" onclick="judgeProposal('approved')" style="flex:2;">✅ 承認・ミッション作成</button>
     </div>
   </div>
 </div>
@@ -720,8 +722,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <h2 style="text-align:center;margin-bottom:12px;">💸 請求が届いています</h2>
     <div id="pay-confirm-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.8;text-align:center;"></div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-danger btn-sm" onclick="judgePayReq('rejected')">断る</button>
-      <button class="btn btn-gold" onclick="judgePayReq('paid')">支払う</button>
+      <button class="btn btn-danger" onclick="judgePayReq('rejected')" style="flex:1;">❌ 断る</button>
+      <button class="btn btn-gold" onclick="judgePayReq('paid')" style="flex:2;">✅ 支払う</button>
     </div>
   </div>
 </div>
@@ -984,8 +986,10 @@ async function openSendModal(){
   const u=me(); if(!u)return;
   const others=allUsers.filter(x=>x.id!==u.id);
   document.getElementById('s-to').innerHTML=others.length===0?'<option value="">（他のユーザーがいません）</option>':others.map(x=>`<option value="${x.id}">${x.icon} ${x.name} (@${x.handle})</option>`).join('');
-  const coins=myCoins.filter(c=>myBal(c.symbol)>0);
-  document.getElementById('s-coin').innerHTML=coins.length===0?'<option value="">（送れるコインがありません）</option>':coins.map(c=>`<option value="${c.symbol}">${c.symbol} — ${c.name}</option>`).join('');
+  const sendableSymbols=Object.keys(myWallets).filter(s=>myWallets[s]>0);
+  document.getElementById('s-coin').innerHTML=sendableSymbols.length===0
+    ?'<option value="">（送れるコインがありません）</option>'
+    :sendableSymbols.map(s=>{const cd=myCoins.find(c=>c.symbol===s);return `<option value="${s}">${s}${cd?' — '+cd.name:''} (残高:${myWallets[s]})</option>`;}).join('');
   updateSendBal(); showModal('send-modal');
 }
 function updateSendBal(){const sym=document.getElementById('s-coin').value;document.getElementById('s-bal').textContent=sym?'残高: '+myBal(sym).toLocaleString()+' '+sym:'';}
@@ -1111,6 +1115,8 @@ function renderHome(u){
       <div class="list-item-info"><h3>${c.name}</h3><p>${c.symbol}${c.unit_value?' · 1'+c.symbol+'≈'+c.unit_value+c.unit_label:''}</p></div>
       <div style="text-align:right;"><div class="amount">${myBal(c.symbol).toLocaleString()}</div>
       ${c.unit_value?'<div style="font-size:11px;color:var(--green);">≈'+(myBal(c.symbol)*c.unit_value).toLocaleString()+c.unit_label+'</div>':''}</div></div>`).join('');}
+  // アクション必要な通知をホームに表示
+  renderHomeActions(u);
   const fl=document.getElementById('home-feed'),fe=document.getElementById('home-feed-empty');
   if(allTxs.length===0){fl.innerHTML='';fe.style.display='block';}
   else{fe.style.display='none';
@@ -1161,6 +1167,10 @@ function renderCommunity(u){
     }).join('');}
 }
 function renderProfile(u){
+  // コイン発行者かどうかでタブを表示切替
+  const isCoinOwner = myCoins.length > 0;
+  document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
+  document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('prof-avatar').textContent=u.icon||'😊';
   document.getElementById('prof-name').textContent=u.name;
   document.getElementById('prof-handle').textContent='@'+u.handle;
@@ -1188,12 +1198,8 @@ function renderExShop(u){
   else{ae.style.display='none';al.innerHTML=allItems.map(item=>{const owner=getUser(item.owner_id),canUse=myBal(item.coin_symbol)>=item.coin_cost;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text2);">'+(owner?.icon||'')+' '+(owner?.name||'?')+' のメニュー</p>'+(item.stock!==null?'<p style="font-size:11px;color:var(--text3);">残在庫: '+item.stock+'</p>':'')+'</div><div style="text-align:right;flex-shrink:0;"><div style="font-size:14px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div><button class="btn btn-sm '+(canUse?'btn-gold':'btn-outline')+'" style="margin-top:6px;" '+(canUse?'onclick="confirmExchange(\''+item.id+'\')"':'disabled style="opacity:.4;"')+'>'+(canUse?'使う':'残高不足')+'</button></div></div>';}).join('');}
 }
 async function renderMarketTab(){
-  const{data:wallets}=await sb.from('wallets').select('*, users(name,icon)');
   const{data:txs}=await sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(60);
-  const mc=document.getElementById('mkt-coins'),me3=document.getElementById('mkt-coins-empty');
-  const ws=wallets||[];
-  if(ws.length===0){mc.innerHTML='';me3.style.display='block';}
-  else{me3.style.display='none';mc.innerHTML=ws.map(w=>'<div class="mkt-row"><div class="coin-badge sm">'+w.coin_symbol.slice(0,3)+'</div><div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;">'+w.coin_symbol+'</div><div style="font-size:12px;color:var(--text2);margin-top:2px;">'+(w.users?.icon||'😊')+' '+(w.users?.name||'?')+'</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:15px;font-weight:700;color:var(--gold-l);">'+w.balance.toLocaleString()+'</div><div style="font-size:11px;color:var(--text3);">残高</div></div></div>').join('');}
+  // 全コイン表示は削除（取引履歴のみ表示）
   const tl=document.getElementById('mkt-tx'),te=document.getElementById('mkt-tx-empty');
   if(!txs||txs.length===0){tl.innerHTML='';te.style.display='block';}
   else{te.style.display='none';tl.innerHTML=txs.map(tx=>{const from=getUser(tx.from_user_id),to=getUser(tx.to_user_id);const icon=tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':tx.type==='exchange'?'🛍':'↔';let lbl='';if(tx.type==='mint')lbl=(to?.name||'?')+' が '+tx.amount+' '+tx.coin_symbol+' を発行';else if(tx.type==='mission')lbl=(to?.name||'?')+' がミッション達成 +'+tx.amount+' '+tx.coin_symbol;else if(tx.type==='exchange')lbl=(from?.name||'?')+' が交換 '+tx.amount+' '+tx.coin_symbol+'→'+(to?.name||'?');else lbl=(from?.name||'?')+' → '+(to?.name||'?')+'：'+tx.amount+' '+tx.coin_symbol+(tx.memo?' 「'+tx.memo+'」':'');return '<div class="feed-item"><div style="font-size:18px;flex-shrink:0;">'+icon+'</div><div><div class="feed-text">'+lbl+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';}).join('');}
@@ -1220,7 +1226,7 @@ function switchPTab(name,btn){
 function show(id){document.getElementById(id).style.display='flex';}
 function hide(id){document.getElementById(id).style.display='none';}
 function showModal(id){
-  if(id==='notif-modal')renderNotifsWithActions();
+  if(id==='notif-modal'){renderNotifsWithActions();markNotifsRead();}
   if(id==='settings-modal')renderSettingsUsers();
   if(id==='create-mission-modal'){
     renderMissionCoinSel();
@@ -1413,7 +1419,9 @@ function renderMissionCard(m, u, target, isOwner){
   const isTarget = !m.target_user_id || m.target_user_id === u.id;
 
   // 申請済みかチェック
-  const applied = allMissionApps.some(a=>a.mission_id===m.id&&a.applicant_id===u.id&&a.status==='pending');
+  const myApp = allMissionApps.find(a=>a.mission_id===m.id&&a.applicant_id===u.id);
+  const applied = myApp?.status==='pending';
+  const appApproved = myApp?.status==='approved';
 
   let actionBtn = '';
   if(isMyMission && m.approval_type==='owner'){
@@ -1422,8 +1430,10 @@ function renderMissionCard(m, u, target, isOwner){
   } else if(!isMyMission && isTarget && !done){
     if(m.approval_type==='self'){
       // 申請タイプ
-      if(applied){
-        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>申請中</button>`;
+      if(appApproved){
+        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>✓ 承認済</button>`;
+      } else if(applied){
+        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>申請中...</button>`;
       } else {
         actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する</button>`;
       }
@@ -1702,6 +1712,83 @@ function renderNotifsWithActions(){
 // ── createMission 拡張 ──
 function toggleMissionTarget(v){
   document.getElementById('m-target-group').style.display=v==='private'?'block':'none';
+}
+
+
+function renderHomeActions(u){
+  const sec = document.getElementById('home-notif-section');
+  const list = document.getElementById('home-action-list');
+  const badge = document.getElementById('notif-badge');
+  const actions = [];
+
+  // 未払い請求
+  allPayReqs.filter(r=>r.payer_id===u.id&&r.status==='pending').forEach(r=>{
+    const requester=getUser(r.requester_id);
+    actions.push({
+      icon:'💸', color:'var(--gold)',
+      text:`<strong>${requester?.name||'?'}</strong> から <strong>${r.amount} ${r.coin_symbol}</strong> の請求`,
+      sub: r.memo||'',
+      btn:'支払う / 断る',
+      onclick:`openPayConfirm('${r.id}')`
+    });
+  });
+
+  // 未処理のミッション申請（自分のミッション）
+  const myMissionIds=allMissions.filter(m=>m.owner_id===u.id).map(m=>m.id);
+  allMissionApps.filter(a=>myMissionIds.includes(a.mission_id)&&a.status==='pending').forEach(a=>{
+    const m=allMissions.find(x=>x.id===a.mission_id);
+    const applicant=getUser(a.applicant_id);
+    actions.push({
+      icon:'📩', color:'var(--purple-l)',
+      text:`<strong>${applicant?.name||'?'}</strong> が「${m?.title||'?'}」に申請`,
+      sub: a.note||'',
+      btn:'承認 / 却下',
+      onclick:`openApproveApp('${a.id}')`
+    });
+  });
+
+  // 未処理のミッション提案（自分宛）
+  allProposals.filter(p=>p.coin_owner_id===u.id&&p.status==='pending').forEach(p=>{
+    const proposer=getUser(p.proposer_id);
+    actions.push({
+      icon:'💡', color:'var(--green)',
+      text:`<strong>${proposer?.name||'?'}</strong> からミッション提案「${p.title}」`,
+      sub: p.description||'',
+      btn:'承認 / 却下',
+      onclick:`openApproveProposal('${p.id}')`
+    });
+  });
+
+  // 未読バッジ
+  const unread = myNotifs.filter(n=>!n.is_read).length + actions.length;
+  badge.style.display = unread > 0 ? 'block' : 'none';
+
+  if(actions.length===0){
+    sec.style.display='none';
+    return;
+  }
+  sec.style.display='block';
+  list.innerHTML = actions.map(a=>`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="font-size:20px;flex-shrink:0;">${a.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;line-height:1.5;">${a.text}</div>
+          ${a.sub?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">${a.sub}</div>`:''}
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" style="width:100%;margin-top:10px;" onclick="${a.onclick}">${a.btn}</button>
+    </div>`).join('');
+}
+
+
+async function markNotifsRead(){
+  const u=me(); if(!u) return;
+  const unreadIds=myNotifs.filter(n=>!n.is_read).map(n=>n.id);
+  if(unreadIds.length===0) return;
+  await sb.from('notifications').update({is_read:true}).in('id',unreadIds);
+  myNotifs.forEach(n=>n.is_read=true);
+  document.getElementById('notif-badge').style.display='none';
 }
 
 async function boot(){
