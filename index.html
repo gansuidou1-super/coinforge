@@ -675,9 +675,27 @@ select.form-input option{background:var(--card2);color:var(--text);}
 </div>
 
 <div class="modal-overlay" id="settings-modal" onclick="closeBg(event,'settings-modal')">
-  <div class="modal"><div class="modal-handle"></div><h2>⚙ アカウント</h2>
+  <div class="modal"><div class="modal-handle"></div><h2>⚙ アカウント設定</h2>
     <div id="settings-profile"></div>
-    <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;">プロフィール編集</div>
+      <div class="form-group">
+        <label class="form-label">アイコン（絵文字）</label>
+        <input class="form-input" type="text" id="edit-icon" maxlength="2" placeholder="😊">
+      </div>
+      <div class="form-group">
+        <label class="form-label">名前</label>
+        <input class="form-input" type="text" id="edit-name" placeholder="例: さとし">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ハンドル名（英数字）</label>
+        <input class="form-input" type="text" id="edit-handle" placeholder="satoshi">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="saveProfile()">✓ プロフィールを保存</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
       <button class="btn btn-outline" style="width:100%;" onclick="showModal('change-password-modal');closeModal('settings-modal')">🔑 パスワードを変更する</button>
       <button class="btn btn-danger" style="width:100%;" onclick="doSignOut()">🚪 ログアウト</button>
     </div>
@@ -2077,15 +2095,18 @@ async function onAuthSuccess(user){
 // renderSettingsUsers → renderSettingsProfile に
 function renderSettingsProfile(){
   const u=me(); if(!u) return;
-  const authUser = sb.auth.getUser ? null : null; // async
   document.getElementById('settings-profile').innerHTML=`
-    <div class="list-item">
-      <div class="avatar" style="font-size:24px;">${u.icon||'😊'}</div>
+    <div class="list-item" style="background:var(--bg3);">
+      <div class="avatar" style="font-size:28px;width:52px;height:52px;">${u.icon||'😊'}</div>
       <div class="list-item-info">
-        <h3>${u.name}</h3>
+        <h3 style="font-size:16px;">${u.name}</h3>
         <p>@${u.handle}</p>
       </div>
     </div>`;
+  // フォームに現在値をセット
+  document.getElementById('edit-icon').value = u.icon||'😊';
+  document.getElementById('edit-name').value = u.name||'';
+  document.getElementById('edit-handle').value = u.handle||'';
 }
 
 async function confirmDelete(){
@@ -2113,6 +2134,26 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     showModal('change-password-modal');
   }
 });
+
+
+async function saveProfile(){
+  const u=me(); if(!u) return;
+  const icon=document.getElementById('edit-icon').value.trim()||'😊';
+  const name=document.getElementById('edit-name').value.trim();
+  const handle=document.getElementById('edit-handle').value.trim().replace(/\s/g,'').toLowerCase();
+  if(!name){toast('名前を入力してください',true);return;}
+  if(!handle){toast('ハンドル名を入力してください',true);return;}
+  if(!/^[a-z0-9_]+$/.test(handle)){toast('ハンドル名は英小文字・数字・_のみ使えます',true);return;}
+  // ハンドル重複チェック（自分以外）
+  const{data:dup}=await sb.from('users').select('id').eq('handle',handle).neq('id',u.id).single();
+  if(dup){toast('そのハンドル名はすでに使われています',true);return;}
+  const{error}=await sb.from('users').update({icon,name,handle}).eq('id',u.id);
+  if(error){toast('エラー: '+error.message,true);return;}
+  closeModal('settings-modal');
+  toast('プロフィールを更新しました！');
+  await loadAll();
+  renderAll();
+}
 
 async function boot(){
   show('loading-screen');
