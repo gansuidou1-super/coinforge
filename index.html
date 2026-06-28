@@ -332,11 +332,26 @@ select.form-input option{background:var(--card2);color:var(--text);}
 <!-- MARKET -->
 <div class="screen" id="screen-market">
   <div class="header"><h1>マーケット</h1></div>
-  <div class="section"><div class="info-box"><span class="realtime-dot"></span>リアルタイム同期中 — 全員の取引が即反映されます</div></div>
-
+  <div class="section" style="padding-bottom:8px;">
+    <div class="info-box"><span class="realtime-dot"></span>自分が発行したコインの保有状況・全取引履歴が見られます</div>
+  </div>
+  <!-- コイン選択タブ -->
+  <div class="section" style="padding-top:0;padding-bottom:0;">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;">
+      <div style="display:flex;gap:6px;width:max-content;" id="mkt-coin-tabs"></div>
+    </div>
+  </div>
+  <!-- 保有者一覧 -->
+  <div class="section" style="padding-top:12px;">
+    <div class="section-header"><span class="section-title">保有者</span></div>
+    <div id="mkt-holders"></div>
+    <div class="empty" id="mkt-holders-empty">保有者がいません</div>
+  </div>
+  <!-- 取引履歴 -->
   <div class="section" style="padding-top:0;">
-    <div class="section-header"><span class="section-title">全取引履歴</span></div>
-    <div id="mkt-tx"></div><div class="empty" id="mkt-tx-empty">まだ取引がありません</div>
+    <div class="section-header"><span class="section-title">取引履歴</span></div>
+    <div id="mkt-tx"></div>
+    <div class="empty" id="mkt-tx-empty">取引がありません</div>
   </div>
   <div style="height:20px;"></div>
 </div>
@@ -1197,12 +1212,95 @@ function renderExShop(u){
   if(allItems.length===0){al.innerHTML='';ae.style.display='block';}
   else{ae.style.display='none';al.innerHTML=allItems.map(item=>{const owner=getUser(item.owner_id),canUse=myBal(item.coin_symbol)>=item.coin_cost;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text2);">'+(owner?.icon||'')+' '+(owner?.name||'?')+' のメニュー</p>'+(item.stock!==null?'<p style="font-size:11px;color:var(--text3);">残在庫: '+item.stock+'</p>':'')+'</div><div style="text-align:right;flex-shrink:0;"><div style="font-size:14px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div><button class="btn btn-sm '+(canUse?'btn-gold':'btn-outline')+'" style="margin-top:6px;" '+(canUse?'onclick="confirmExchange(\''+item.id+'\')"':'disabled style="opacity:.4;"')+'>'+(canUse?'使う':'残高不足')+'</button></div></div>';}).join('');}
 }
+let selectedMktSymbol = null;
+
 async function renderMarketTab(){
-  const{data:txs}=await sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(60);
-  // 全コイン表示は削除（取引履歴のみ表示）
+  const u = me(); if(!u) return;
+  if(myCoins.length === 0) return;
+
+  // コイン選択タブを生成
+  const tabsEl = document.getElementById('mkt-coin-tabs');
+  if(!selectedMktSymbol || !myCoins.find(c=>c.symbol===selectedMktSymbol)){
+    selectedMktSymbol = myCoins[0].symbol;
+  }
+  tabsEl.innerHTML = myCoins.map(c=>`
+    <button onclick="selectMktCoin('${c.symbol}')"
+      style="padding:7px 14px;border-radius:20px;border:1px solid ${c.symbol===selectedMktSymbol?'var(--purple)':'var(--border)'};
+      background:${c.symbol===selectedMktSymbol?'rgba(124,58,237,.2)':'var(--card)'};
+      color:${c.symbol===selectedMktSymbol?'var(--purple-l)':'var(--text2)'};
+      font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+      ${c.symbol}
+    </button>`).join('');
+
+  await renderMktForCoin(selectedMktSymbol);
+}
+
+function selectMktCoin(sym){
+  selectedMktSymbol = sym;
+  renderMarketTab();
+}
+
+async function renderMktForCoin(sym){
+  // 保有者一覧（全ウォレット from Supabase）
+  const {data:wallets} = await sb.from('wallets')
+    .select('*, users(name,icon,handle)')
+    .eq('coin_symbol', sym)
+    .gt('balance', 0)
+    .order('balance', {ascending:false});
+
+  const hl = document.getElementById('mkt-holders');
+  const he = document.getElementById('mkt-holders-empty');
+  if(!wallets||wallets.length===0){hl.innerHTML='';he.style.display='block';}
+  else{
+    he.style.display='none';
+    // 合計
+    const total = wallets.reduce((s,w)=>s+w.balance,0);
+    hl.innerHTML = `
+      <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:var(--text2);">合計流通量</span>
+        <span style="font-size:16px;font-weight:700;color:var(--gold-l);">${total.toLocaleString()} ${sym}</span>
+      </div>` +
+      wallets.map((w,i)=>{
+        const pct = total > 0 ? Math.round(w.balance/total*100) : 0;
+        return `<div class="list-item" style="margin-bottom:6px;">
+          <div style="width:24px;font-size:14px;font-weight:700;color:${i===0?'var(--gold)':i===1?'#94A3B8':i===2?'#B45309':'var(--text3)'};">${i+1}</div>
+          <div class="avatar" style="font-size:18px;">${w.users?.icon||'😊'}</div>
+          <div class="list-item-info">
+            <h3>${w.users?.name||'?'}</h3>
+            <div style="margin-top:4px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:15px;font-weight:700;color:var(--gold-l);">${w.balance.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text3);">${pct}%</div>
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  // 取引履歴（このコインのみ）
+  const {data:txs} = await sb.from('transactions')
+    .select('*')
+    .eq('coin_symbol', sym)
+    .order('created_at',{ascending:false})
+    .limit(50);
+
   const tl=document.getElementById('mkt-tx'),te=document.getElementById('mkt-tx-empty');
   if(!txs||txs.length===0){tl.innerHTML='';te.style.display='block';}
-  else{te.style.display='none';tl.innerHTML=txs.map(tx=>{const from=getUser(tx.from_user_id),to=getUser(tx.to_user_id);const icon=tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':tx.type==='exchange'?'🛍':'↔';let lbl='';if(tx.type==='mint')lbl=(to?.name||'?')+' が '+tx.amount+' '+tx.coin_symbol+' を発行';else if(tx.type==='mission')lbl=(to?.name||'?')+' がミッション達成 +'+tx.amount+' '+tx.coin_symbol;else if(tx.type==='exchange')lbl=(from?.name||'?')+' が交換 '+tx.amount+' '+tx.coin_symbol+'→'+(to?.name||'?');else lbl=(from?.name||'?')+' → '+(to?.name||'?')+'：'+tx.amount+' '+tx.coin_symbol+(tx.memo?' 「'+tx.memo+'」':'');return '<div class="feed-item"><div style="font-size:18px;flex-shrink:0;">'+icon+'</div><div><div class="feed-text">'+lbl+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';}).join('');}
+  else{
+    te.style.display='none';
+    tl.innerHTML=txs.map(tx=>{
+      const from=getUser(tx.from_user_id),to=getUser(tx.to_user_id);
+      const icon=tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':tx.type==='exchange'?'🛍':'↔';
+      let lbl='';
+      if(tx.type==='mint') lbl=(to?.name||'?')+' が '+tx.amount+' '+tx.coin_symbol+' を発行';
+      else if(tx.type==='mission') lbl=(to?.name||'?')+' がミッション達成 +'+tx.amount+' '+tx.coin_symbol;
+      else if(tx.type==='exchange') lbl=(from?.name||'?')+' が交換 '+tx.amount+' '+tx.coin_symbol+'→'+(to?.name||'?');
+      else lbl=(from?.name||'?')+' → '+(to?.name||'?')+'：'+tx.amount+' '+tx.coin_symbol+(tx.memo?' 「'+tx.memo+'」':'');
+      return '<div class="feed-item"><div style="font-size:18px;flex-shrink:0;">'+icon+'</div><div><div class="feed-text">'+lbl+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';
+    }).join('');
+  }
 }
 function renderNotifs(){ renderNotifsWithActions(); }
 function renderSettingsUsers(){
