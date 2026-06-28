@@ -1111,6 +1111,10 @@ function renderAll(){
   const u=me(); if(!u)return;
   document.getElementById('hdr-icon').textContent=u.icon||'😊';
   document.getElementById('hdr-name').textContent=u.name;
+  // マーケットナビ：コイン発行者のみ表示
+  const navMkt = document.getElementById('nav-market');
+  navMkt.style.display = myCoins.length > 0 ? 'flex' : 'none';
+  navMkt.style.flexDirection = 'column';
   renderHome(u); renderWallet(u); renderCommunity(u); renderProfile(u); renderExShop(u);
 }
 function renderHome(u){
