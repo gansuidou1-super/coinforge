@@ -942,12 +942,11 @@ async function loadAll(){
   allMissionApps=ma.data||[]; allProposals=mp.data||[]; allPayReqs=pr.data||[];
   // isAdmin を常に最新のusersテーブルから更新
   const meUser = (u.data||[]).find(x=>x.id===currentUserId);
-  if(meUser) isAdmin = meUser.is_admin||false;
+  if(meUser) isAdmin = meUser.is_admin===true;
 }
 
 let realtimeChannel=null;
 function setupRealtime(){
-  isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   realtimeChannel=sb.channel('cf_'+currentUserId)
     .on('postgres_changes',{event:'*',schema:'public',table:'wallets',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderAll);})
@@ -1310,6 +1309,7 @@ function renderProfile(u){
   const isCoinOwner = myCoins.length > 0;
   // 管理者タブ
   const adminBtn = document.getElementById('ptab-btn-admin');
+  console.log('[CoinForge DEBUG] isAdmin='+isAdmin+' meUser='+JSON.stringify(allUsers.find(x=>x.id===currentUserId)));
   if(adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
   document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
@@ -2120,7 +2120,7 @@ async function onAuthSuccess(user){
   localStorage.setItem('cf_uid', user.id);
   // usersテーブルにプロフィールがなければ作成（Google初回ログイン）
   const{data:existing}=await sb.from('users').select('id,is_admin').eq('id',user.id).single();
-  if(existing) isAdmin=existing.is_admin||false;
+  if(existing) isAdmin=existing.is_admin===true;
   if(!existing){
     const meta=user.user_metadata||{};
     const name=meta.full_name||meta.name||user.email?.split('@')[0]||'ユーザー';
