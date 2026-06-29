@@ -424,6 +424,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
     <button class="tab-btn active" onclick="switchPTab('my',this)">マイページ</button>
     <button class="tab-btn" id="ptab-btn-coin" onclick="switchPTab('coin',this)" style="display:none;">コイン管理</button>
     <button class="tab-btn" id="ptab-btn-shop" onclick="switchPTab('shop',this)" style="display:none;">交換所</button>
+    <button class="tab-btn" id="ptab-btn-admin" onclick="switchPTab('admin',this)" style="display:none;">🛡 管理</button>
   </div>
   <!-- マイページ -->
   <div class="tab-content active" id="ptab-my">
@@ -462,6 +463,36 @@ select.form-input option{background:var(--card2);color:var(--text);}
       <div id="exchange-all"></div><div class="empty" id="exchange-all-empty">交換メニューがありません</div>
     </div>
   </div>
+  <!-- 管理タブ -->
+  <div class="tab-content" id="ptab-admin">
+    <div class="section">
+      <div class="info-box" style="margin-bottom:14px;">
+        🛡 管理者専用画面です。ユーザー管理・データ操作ができます。
+      </div>
+
+      <div class="section-header" style="margin-bottom:10px;">
+        <span class="section-title">ユーザー管理</span>
+        <button class="btn btn-sm btn-outline" onclick="loadAdminUsers()">🔄 更新</button>
+      </div>
+      <div id="admin-user-list"></div>
+      <div class="empty" id="admin-user-empty">ユーザーがいません</div>
+    </div>
+
+    <div class="section" style="padding-top:0;">
+      <div class="section-header" style="margin-bottom:10px;">
+        <span class="section-title">データクリーン</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-outline" style="width:100%;" onclick="adminDeleteOrphanWallets()">
+          🧹 孤立ウォレットを削除
+        </button>
+        <button class="btn btn-danger" style="width:100%;" onclick="adminDeleteAllData()">
+          ⚠ 全テストデータを削除
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div style="height:20px;"></div>
 </div>
 
@@ -844,6 +875,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let currentUserId=localStorage.getItem('cf_uid')||null;
+let isAdmin=false;
 let allUsers=[],myCoins=[],myWallets={},allTxs=[],allComms=[],allMissions=[],
     allCompletions=[],myNotifs=[],allExItems=[],allExOrders=[],
     allMissionApps=[],allProposals=[],allPayReqs=[];
@@ -888,7 +920,7 @@ async function checkPin(){
 async function loadAll(){
   const id=currentUserId;
   const [u,c,w,t,co,m,mc,n,ex,eo,ma,mp,pr]=await Promise.all([
-    sb.from('users').select('*').order('created_at'),
+    sb.from('users').select('*').order('created_at'),  // includes is_admin
     sb.from('coins').select('*').eq('owner_id',id).order('created_at'),
     sb.from('wallets').select('*').eq('user_id',id),
     sb.from('transactions').select('*').or('from_user_id.eq.'+id+',to_user_id.eq.'+id).order('created_at',{ascending:false}).limit(60),
@@ -912,6 +944,7 @@ async function loadAll(){
 
 let realtimeChannel=null;
 function setupRealtime(){
+  isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   realtimeChannel=sb.channel('cf_'+currentUserId)
     .on('postgres_changes',{event:'*',schema:'public',table:'wallets',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderAll);})
@@ -948,6 +981,7 @@ async function loginUser(id){
 }
 
 function goToUserSelect(){
+  isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   currentUserId=null; localStorage.removeItem('cf_uid'); hide('loading-screen');
   loadUsers().then(()=>{renderUserSelect();document.getElementById('user-select-screen').style.display='flex';});
@@ -1271,6 +1305,9 @@ function renderCommunity(u){
 function renderProfile(u){
   // コイン発行者かどうかでタブを表示切替
   const isCoinOwner = myCoins.length > 0;
+  // 管理者タブ
+  const adminBtn = document.getElementById('ptab-btn-admin');
+  if(adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
   document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('prof-avatar').textContent=u.icon||'😊';
@@ -1407,6 +1444,7 @@ function switchPTab(name,btn){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');document.getElementById('ptab-'+name).classList.add('active');
   if(name==='shop')renderExCoinSel();
+  if(name==='admin')loadAdminUsers();
 }
 function show(id){document.getElementById(id).style.display='flex';}
 function hide(id){document.getElementById(id).style.display='none';}
@@ -2058,6 +2096,7 @@ async function doSignOut(){
   await sb.auth.signOut();
   currentUserId=null;
   allUsers=[]; myCoins=[]; myWallets={}; allTxs=[];
+  isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   hideLoginScreen();
   showLoginScreen();
@@ -2077,7 +2116,8 @@ async function onAuthSuccess(user){
   currentUserId = user.id;
   localStorage.setItem('cf_uid', user.id);
   // usersテーブルにプロフィールがなければ作成（Google初回ログイン）
-  const{data:existing}=await sb.from('users').select('id').eq('id',user.id).single();
+  const{data:existing}=await sb.from('users').select('id,is_admin').eq('id',user.id).single();
+  if(existing) isAdmin=existing.is_admin||false;
   if(!existing){
     const meta=user.user_metadata||{};
     const name=meta.full_name||meta.name||user.email?.split('@')[0]||'ユーザー';
@@ -2154,6 +2194,120 @@ async function saveProfile(){
   await loadAll();
   renderAll();
 }
+
+
+// ── 管理者機能 ──
+async function loadAdminUsers(){
+  if(!isAdmin){toast('管理者権限がありません',true);return;}
+  const{data:users}=await sb.from('users').select('*').order('created_at');
+  const{data:wallets}=await sb.from('wallets').select('*');
+  const{data:coins}=await sb.from('coins').select('*');
+
+  const el=document.getElementById('admin-user-list');
+  const em=document.getElementById('admin-user-empty');
+  if(!users||users.length===0){el.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+
+  el.innerHTML=users.map(u=>{
+    const userWallets=wallets?.filter(w=>w.user_id===u.id)||[];
+    const userCoins=coins?.filter(c=>c.owner_id===u.id)||[];
+    const totalBal=userWallets.reduce((s,w)=>s+w.balance,0);
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="avatar" style="font-size:20px;">${u.icon||'😊'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;">${u.name} ${u.is_admin?'<span style="font-size:11px;background:rgba(124,58,237,.2);color:var(--purple-l);padding:2px 8px;border-radius:10px;">管理者</span>':''}</div>
+          <div style="font-size:12px;color:var(--text2);">@${u.handle}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">コイン${userCoins.length}種 · 総残高${totalBal.toLocaleString()}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="adminToggleAdmin('${u.id}','${u.name}',${u.is_admin})">
+          ${u.is_admin?'管理者を解除':'管理者にする'}
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="adminDeleteUser('${u.id}','${u.name}')">
+          ユーザーを削除
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function adminToggleAdmin(userId, userName, currentIsAdmin){
+  if(!isAdmin){toast('権限がありません',true);return;}
+  if(userId===currentUserId&&currentIsAdmin){
+    toast('自分の管理者権限は解除できません',true);return;
+  }
+  const newVal=!currentIsAdmin;
+  if(!confirm(`${userName} を${newVal?'管理者にします':'管理者から外します'}。よろしいですか？`))return;
+  await sb.from('users').update({is_admin:newVal}).eq('id',userId);
+  toast(newVal?`${userName} を管理者にしました`:`${userName} の管理者権限を解除しました`);
+  await loadAdminUsers();
+}
+
+async function adminDeleteUser(userId, userName){
+  if(!isAdmin){toast('権限がありません',true);return;}
+  if(userId===currentUserId){toast('自分自身は削除できません',true);return;}
+  if(!confirm(`【警告】${userName} のアカウントとすべてのデータを削除します。
+この操作は元に戻せません。
+
+本当に削除しますか？`))return;
+  // 関連データを順番に削除
+  await sb.from('mission_completions').delete().eq('user_id',userId);
+  await sb.from('mission_applications').delete().eq('applicant_id',userId);
+  await sb.from('mission_proposals').delete().or(`proposer_id.eq.${userId},coin_owner_id.eq.${userId}`);
+  await sb.from('payment_requests').delete().or(`requester_id.eq.${userId},payer_id.eq.${userId}`);
+  await sb.from('exchange_orders').delete().or(`buyer_id.eq.${userId},owner_id.eq.${userId}`);
+  await sb.from('exchange_items').delete().eq('owner_id',userId);
+  await sb.from('coin_operations').delete().eq('operator_id',userId);
+  await sb.from('wallets').delete().eq('user_id',userId);
+  await sb.from('coins').delete().eq('owner_id',userId);
+  await sb.from('communities').delete().eq('owner_id',userId);
+  await sb.from('missions').delete().eq('owner_id',userId);
+  await sb.from('notifications').delete().eq('user_id',userId);
+  await sb.from('transactions').delete().or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`);
+  await sb.from('users').delete().eq('id',userId);
+  toast(`${userName} を削除しました`);
+  await loadAll();
+  await loadAdminUsers();
+  renderAll();
+}
+
+async function adminDeleteOrphanWallets(){
+  if(!isAdmin){toast('権限がありません',true);return;}
+  if(!confirm('存在しないユーザーのウォレットデータを削除します。よろしいですか？'))return;
+  // usersテーブルにないuser_idのwalletを削除
+  const{data:users}=await sb.from('users').select('id');
+  const{data:wallets}=await sb.from('wallets').select('*');
+  const userIds=new Set((users||[]).map(u=>u.id));
+  const orphans=(wallets||[]).filter(w=>!userIds.has(w.user_id));
+  for(const w of orphans){
+    await sb.from('wallets').delete().eq('id',w.id);
+  }
+  toast(`${orphans.length}件の孤立ウォレットを削除しました`);
+}
+
+async function adminDeleteAllData(){
+  if(!isAdmin){toast('権限がありません',true);return;}
+  const confirmed=prompt('全テストデータを削除します。確認のため「全削除」と入力してください：');
+  if(confirmed!=='全削除'){toast('キャンセルしました');return;}
+  show('loading-screen');
+  const tables=['exchange_orders','exchange_items','mission_completions','mission_applications',
+    'mission_proposals','payment_requests','coin_operations','transactions',
+    'wallets','missions','communities','coins','notifications'];
+  for(const t of tables){
+    await sb.from(t).delete().neq('id','__dummy__');
+  }
+  // 自分以外のユーザーを削除
+  await sb.from('users').delete().neq('id',currentUserId);
+  hide('loading-screen');
+  toast('全テストデータを削除しました');
+  await loadAll();
+  renderAll();
+}
+
+// switchPTab に admin タブの初期化を追加
+const _origSwitchPTab = typeof switchPTab === 'function' ? switchPTab : null;
 
 async function boot(){
   show('loading-screen');
