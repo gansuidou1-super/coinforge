@@ -1309,7 +1309,6 @@ function renderProfile(u){
   const isCoinOwner = myCoins.length > 0;
   // 管理者タブ
   const adminBtn = document.getElementById('ptab-btn-admin');
-  console.log('[CoinForge DEBUG] isAdmin='+isAdmin+' meUser='+JSON.stringify(allUsers.find(x=>x.id===currentUserId)));
   if(adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
   document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
