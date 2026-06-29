@@ -940,6 +940,9 @@ async function loadAll(){
   allCompletions=mc.data||[]; myNotifs=n.data||[];
   allExItems=ex.data||[]; allExOrders=eo.data||[];
   allMissionApps=ma.data||[]; allProposals=mp.data||[]; allPayReqs=pr.data||[];
+  // isAdmin を常に最新のusersテーブルから更新
+  const meUser = (u.data||[]).find(x=>x.id===currentUserId);
+  if(meUser) isAdmin = meUser.is_admin||false;
 }
 
 let realtimeChannel=null;
