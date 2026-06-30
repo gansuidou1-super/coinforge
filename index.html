@@ -1731,16 +1731,16 @@ function renderMissionCard(m, u, target, isOwner){
 
   // 管理者または作成者は削除可能
   const canDelete = isAdmin || isMyMission;
-  const longPressAttr = canDelete ? `oncontextmenu="event.preventDefault();confirmDeleteMission('${m.id}','${(m.title||'').replace(/'/g,"\\'")}')" ontouchstart="startLongPress('${m.id}','${(m.title||'').replace(/'/g,"\\'")}')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()"` : '';
+  const safeTitle = (m.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-  return `<div class="mission-card" ${longPressAttr} style="${canDelete?'cursor:pointer;':''}">
+  return `<div class="mission-card" style="position:relative;">
     <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
     <div class="mission-info">
       <h3>${m.title}</h3>
       <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
-      ${canDelete?'<p style="font-size:10px;color:var(--text3);margin-top:2px;">長押しで削除</p>':''}
     </div>
     ${actionBtn}
+    ${canDelete?`<button onclick="event.stopPropagation();confirmDeleteMission('${m.id}','${safeTitle}')" style="position:absolute;top:6px;right:6px;background:none;border:none;color:var(--text3);font-size:18px;padding:4px 8px;cursor:pointer;line-height:1;">⋮</button>`:''}
   </div>`;
 }
 
@@ -2430,22 +2430,8 @@ async function doInstallAndroid(){
 }
 
 
-// ── ミッション長押し削除 ──
-let longPressTimer = null;
-
-function startLongPress(missionId, title){
-  longPressTimer = setTimeout(() => {
-    if(navigator.vibrate) navigator.vibrate(50);
-    confirmDeleteMission(missionId, title);
-  }, 600);
-}
-
-function cancelLongPress(){
-  if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
-}
-
+// ── ミッション削除 ──
 async function confirmDeleteMission(missionId, title){
-  cancelLongPress();
   const m = allMissions.find(x=>x.id===missionId);
   if(!m) return;
   const u = me();
