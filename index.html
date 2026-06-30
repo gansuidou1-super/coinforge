@@ -1729,11 +1729,16 @@ function renderMissionCard(m, u, target, isOwner){
   const targetLabel = m.target_user_id ? ` · 🔒 ${target?.name||getUser(m.target_user_id)?.name||'専用'}専用` : '';
   const repeatLabel = m.is_repeatable ? ' · 🔄 繰返し' : '';
 
-  return `<div class="mission-card">
+  // 管理者または作成者は削除可能
+  const canDelete = isAdmin || isMyMission;
+  const longPressAttr = canDelete ? `oncontextmenu="event.preventDefault();confirmDeleteMission('${m.id}','${(m.title||'').replace(/'/g,"\\'")}')" ontouchstart="startLongPress('${m.id}','${(m.title||'').replace(/'/g,"\\'")}')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()"` : '';
+
+  return `<div class="mission-card" ${longPressAttr} style="${canDelete?'cursor:pointer;':''}">
     <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
     <div class="mission-info">
       <h3>${m.title}</h3>
       <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
+      ${canDelete?'<p style="font-size:10px;color:var(--text3);margin-top:2px;">長押しで削除</p>':''}
     </div>
     ${actionBtn}
   </div>`;
@@ -2422,6 +2427,41 @@ async function doInstallAndroid(){
     deferredInstallPrompt = null;
   }
   closeModal('install-modal');
+}
+
+
+// ── ミッション長押し削除 ──
+let longPressTimer = null;
+
+function startLongPress(missionId, title){
+  longPressTimer = setTimeout(() => {
+    if(navigator.vibrate) navigator.vibrate(50);
+    confirmDeleteMission(missionId, title);
+  }, 600);
+}
+
+function cancelLongPress(){
+  if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
+}
+
+async function confirmDeleteMission(missionId, title){
+  cancelLongPress();
+  const m = allMissions.find(x=>x.id===missionId);
+  if(!m) return;
+  const u = me();
+  if(!isAdmin && m.owner_id!==u?.id){
+    toast('削除権限がありません',true); return;
+  }
+  if(!confirm(`ミッション「${title}」を削除しますか？\n関連する申請データも削除されます。`)) return;
+
+  // 関連データを先に削除
+  await sb.from('mission_applications').delete().eq('mission_id', missionId);
+  await sb.from('mission_completions').delete().eq('mission_id', missionId);
+  await sb.from('missions').delete().eq('id', missionId);
+
+  toast(`「${title}」を削除しました`);
+  await loadAll();
+  renderMissionTab();
 }
 
 async function boot(){
