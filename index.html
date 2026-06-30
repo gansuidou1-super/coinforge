@@ -1734,16 +1734,14 @@ function renderMissionCard(m, u, target, isOwner){
   const canDelete = (window.isAdmin===true) || isMyMission;
   const safeTitle = (m.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-  return `<div style="position:relative;margin-bottom:8px;">
-    <div class="mission-card" style="margin-bottom:0;">
-      <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
-      <div class="mission-info">
-        <h3>${m.title}</h3>
-        <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
-      </div>
-      ${actionBtn}
+  return `<div class="mission-card" style="margin-bottom:8px;">
+    <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
+    <div class="mission-info">
+      <h3>${m.title}</h3>
+      <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
+      ${canDelete?`<button onclick="confirmDeleteMission('${m.id}','${safeTitle}')" style="margin-top:6px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:12px;padding:4px 10px;cursor:pointer;display:inline-block;">🗑 削除</button>`:''}
     </div>
-    ${canDelete?`<button onclick="confirmDeleteMission('${m.id}','${safeTitle}')" style="position:absolute;top:-8px;right:-6px;background:var(--red);border:2px solid var(--bg);border-radius:50%;color:#fff;font-size:13px;width:26px;height:26px;cursor:pointer;line-height:1;z-index:10;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);">🗑</button>`:''}
+    ${actionBtn}
   </div>`;
 }
 
