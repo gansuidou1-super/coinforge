@@ -931,7 +931,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let currentUserId=localStorage.getItem('cf_uid')||null;
-let isAdmin=false;
+window.isAdmin=false;
 let allUsers=[],myCoins=[],myWallets={},allTxs=[],allComms=[],allMissions=[],
     allCompletions=[],myNotifs=[],allExItems=[],allExOrders=[],
     allMissionApps=[],allProposals=[],allPayReqs=[];
@@ -998,7 +998,7 @@ async function loadAll(){
   allMissionApps=ma.data||[]; allProposals=mp.data||[]; allPayReqs=pr.data||[];
   // isAdmin を常に最新のusersテーブルから更新
   const meUser = (u.data||[]).find(x=>x.id===currentUserId);
-  if(meUser) isAdmin = meUser.is_admin===true;
+  if(meUser) window.isAdmin = meUser.is_admin===true;
 }
 
 let realtimeChannel=null;
@@ -1039,7 +1039,7 @@ async function loginUser(id){
 }
 
 function goToUserSelect(){
-  isAdmin=false;
+  window.isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   currentUserId=null; localStorage.removeItem('cf_uid'); hide('loading-screen');
   loadUsers().then(()=>{renderUserSelect();document.getElementById('user-select-screen').style.display='flex';});
@@ -1365,7 +1365,7 @@ function renderProfile(u){
   const isCoinOwner = myCoins.length > 0;
   // 管理者タブ
   const adminBtn = document.getElementById('ptab-btn-admin');
-  if(adminBtn) adminBtn.style.display = isAdmin ? '' : 'none';
+  if(adminBtn) adminBtn.style.display = window.isAdmin ? '' : 'none';
   document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
   document.getElementById('prof-avatar').textContent=u.icon||'😊';
@@ -1694,6 +1694,7 @@ function renderMissionTab(){
 }
 
 function renderMissionCard(m, u, target, isOwner){
+  console.log('[CF DEBUG] renderMissionCard m.owner_id=',m.owner_id,'u.id=',u.id,'window.isAdmin=',window.isAdmin);
   const done = !m.is_repeatable && allCompletions.some(c=>c.mission_id===m.id&&c.user_id===u.id);
   const owner = getUser(m.owner_id);
   const isMyMission = m.owner_id === u.id;
@@ -1730,7 +1731,7 @@ function renderMissionCard(m, u, target, isOwner){
   const repeatLabel = m.is_repeatable ? ' · 🔄 繰返し' : '';
 
   // 管理者または作成者は削除可能
-  const canDelete = isAdmin || isMyMission;
+  const canDelete = (window.isAdmin===true) || isMyMission;
   const safeTitle = (m.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
   return `<div style="position:relative;margin-bottom:8px;">
@@ -2161,7 +2162,7 @@ async function doSignOut(){
   await sb.auth.signOut();
   currentUserId=null;
   allUsers=[]; myCoins=[]; myWallets={}; allTxs=[];
-  isAdmin=false;
+  window.isAdmin=false;
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
   hideLoginScreen();
   showLoginScreen();
@@ -2182,7 +2183,7 @@ async function onAuthSuccess(user){
   localStorage.setItem('cf_uid', user.id);
   // usersテーブルにプロフィールがなければ作成（Google初回ログイン）
   const{data:existing}=await sb.from('users').select('id,is_admin').eq('id',user.id).single();
-  if(existing) isAdmin=existing.is_admin===true;
+  if(existing) window.isAdmin=existing.is_admin===true;
   if(!existing){
     const meta=user.user_metadata||{};
     const name=meta.full_name||meta.name||user.email?.split('@')[0]||'ユーザー';
@@ -2263,7 +2264,7 @@ async function saveProfile(){
 
 // ── 管理者機能 ──
 async function loadAdminUsers(){
-  if(!isAdmin){toast('管理者権限がありません',true);return;}
+  if(!window.isAdmin){toast('管理者権限がありません',true);return;}
   const{data:users}=await sb.from('users').select('*').order('created_at');
   const{data:wallets}=await sb.from('wallets').select('*');
   const{data:coins}=await sb.from('coins').select('*');
@@ -2299,7 +2300,7 @@ async function loadAdminUsers(){
 }
 
 async function adminToggleAdmin(userId, userName, currentIsAdmin){
-  if(!isAdmin){toast('権限がありません',true);return;}
+  if(!window.isAdmin){toast('権限がありません',true);return;}
   if(userId===currentUserId&&currentIsAdmin){
     toast('自分の管理者権限は解除できません',true);return;
   }
@@ -2311,7 +2312,7 @@ async function adminToggleAdmin(userId, userName, currentIsAdmin){
 }
 
 async function adminDeleteUser(userId, userName){
-  if(!isAdmin){toast('権限がありません',true);return;}
+  if(!window.isAdmin){toast('権限がありません',true);return;}
   if(userId===currentUserId){toast('自分自身は削除できません',true);return;}
   if(!confirm(`【警告】${userName} のアカウントとすべてのデータを削除します。
 この操作は元に戻せません。
@@ -2339,7 +2340,7 @@ async function adminDeleteUser(userId, userName){
 }
 
 async function adminDeleteOrphanWallets(){
-  if(!isAdmin){toast('権限がありません',true);return;}
+  if(!window.isAdmin){toast('権限がありません',true);return;}
   if(!confirm('存在しないユーザーのウォレットデータを削除します。よろしいですか？'))return;
   // usersテーブルにないuser_idのwalletを削除
   const{data:users}=await sb.from('users').select('id');
@@ -2353,7 +2354,7 @@ async function adminDeleteOrphanWallets(){
 }
 
 async function adminDeleteAllData(){
-  if(!isAdmin){toast('権限がありません',true);return;}
+  if(!window.isAdmin){toast('権限がありません',true);return;}
   const confirmed=prompt('全テストデータを削除します。確認のため「全削除」と入力してください：');
   if(confirmed!=='全削除'){toast('キャンセルしました');return;}
   show('loading-screen');
@@ -2437,7 +2438,7 @@ async function confirmDeleteMission(missionId, title){
   const m = allMissions.find(x=>x.id===missionId);
   if(!m) return;
   const u = me();
-  if(!isAdmin && m.owner_id!==u?.id){
+  if(!window.isAdmin && m.owner_id!==u?.id){
     toast('削除権限がありません',true); return;
   }
   if(!confirm(`ミッション「${title}」を削除しますか？\n関連する申請データも削除されます。`)) return;
