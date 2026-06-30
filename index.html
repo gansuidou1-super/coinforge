@@ -1733,14 +1733,14 @@ function renderMissionCard(m, u, target, isOwner){
   const canDelete = isAdmin || isMyMission;
   const safeTitle = (m.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-  return `<div class="mission-card" style="position:relative;">
+  return `<div class="mission-card" style="position:relative;${canDelete?'padding-right:36px;':''}">
     <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
     <div class="mission-info">
       <h3>${m.title}</h3>
       <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
     </div>
     ${actionBtn}
-    ${canDelete?`<button onclick="event.stopPropagation();confirmDeleteMission('${m.id}','${safeTitle}')" style="position:absolute;top:6px;right:6px;background:none;border:none;color:var(--text3);font-size:18px;padding:4px 8px;cursor:pointer;line-height:1;">⋮</button>`:''}
+    ${canDelete?`<button onclick="event.stopPropagation();confirmDeleteMission('${m.id}','${safeTitle}')" style="position:absolute;top:8px;right:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:16px;width:28px;height:28px;cursor:pointer;line-height:1;z-index:5;display:flex;align-items:center;justify-content:center;">🗑</button>`:''}
   </div>`;
 }
 
