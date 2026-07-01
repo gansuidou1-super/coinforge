@@ -1,4 +1,5 @@
-const CACHE = 'coinforge-v3';
+// v4 - force cache clear
+const CACHE = 'coinforge-v4';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
@@ -10,27 +11,25 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE).map(k => {
+        console.log('[SW] Deleting old cache:', k);
+        return caches.delete(k);
+      }))
     ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', e => {
-  // Supabase APIリクエストはキャッシュしない
   if (e.request.url.includes('supabase.co')) return;
-  // Google認証リクエストはキャッシュしない
   if (e.request.url.includes('google')) return;
+  if (e.request.url.includes('googleapis')) return;
 
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        // GETリクエストのみキャッシュ
-        if (e.request.method !== 'GET') return res;
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-        return res;
-      }).catch(() => caches.match('/index.html'));
-    })
+    fetch(e.request).then(res => {
+      if (e.request.method !== 'GET') return res;
+      const clone = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, clone));
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });
