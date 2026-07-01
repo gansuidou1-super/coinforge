@@ -1645,7 +1645,7 @@ function renderMissionTab(){
 
   } else if(currentMTab === 'proposal'){
     // 自分が送った提案 OR 自分宛の提案
-    const list = allProposals.filter(p => p.proposer_id===u.id || p.coin_owner_id===u.id);
+    const list = allProposals.filter(p => (p.proposer_id===u.id || p.coin_owner_id===u.id) && p.status==='pending');
     if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='提案がありません';return;}
     em.style.display='none';
     el.innerHTML = list.map(p => {
@@ -1669,7 +1669,7 @@ function renderMissionTab(){
   } else if(currentMTab === 'apply'){
     // 申請一覧：自分の申請 OR 自分のミッションへの申請
     const myMissionIds = allMissions.filter(m=>m.owner_id===u.id).map(m=>m.id);
-    const list = allMissionApps.filter(a => a.applicant_id===u.id || myMissionIds.includes(a.mission_id));
+    const list = allMissionApps.filter(a => (a.applicant_id===u.id || myMissionIds.includes(a.mission_id)) && a.status==='pending');
     if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='申請がありません';return;}
     em.style.display='none';
     el.innerHTML = list.map(a => {
