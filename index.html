@@ -1290,7 +1290,11 @@ function renderAll(){
   const navMkt = document.getElementById('nav-market');
   navMkt.style.display = myCoins.length > 0 ? 'flex' : 'none';
   navMkt.style.flexDirection = 'column';
-  renderHome(u); renderWallet(u); renderCommunity(u); renderProfile(u); renderExShop(u);
+  renderHome(u); renderWallet(u); renderProfile(u); renderExShop(u);
+  // コミュニティ画面が表示中のときだけミッションタブを更新
+  if(document.getElementById('screen-community').classList.contains('active')){
+    renderCommunity(u);
+  }
 }
 function renderHome(u){
   document.getElementById('home-label').textContent=u.name+' の残高';
@@ -1495,7 +1499,8 @@ function switchTab(tab){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+tab).classList.add('active');
   document.getElementById('nav-'+tab).classList.add('active');
-  if(tab==='market')renderMarketTab();
+  if(tab==='market') renderMarketTab();
+  if(tab==='community'){ const u=me(); if(u) renderCommunity(u); }
 }
 function switchPTab(name,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1694,7 +1699,6 @@ function renderMissionTab(){
 }
 
 function renderMissionCard(m, u, target, isOwner){
-  console.log('[CF DEBUG] renderMissionCard m.owner_id=',m.owner_id,'u.id=',u.id,'window.isAdmin=',window.isAdmin);
   const done = !m.is_repeatable && allCompletions.some(c=>c.mission_id===m.id&&c.user_id===u.id);
   const owner = getUser(m.owner_id);
   const isMyMission = m.owner_id === u.id;
