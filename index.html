@@ -1704,10 +1704,12 @@ function renderMissionCard(m, u, target, isOwner){
   const isMyMission = m.owner_id === u.id;
   const isTarget = !m.target_user_id || m.target_user_id === u.id;
 
-  // 申請済みかチェック
-  const myApp = allMissionApps.find(a=>a.mission_id===m.id&&a.applicant_id===u.id);
-  const applied = myApp?.status==='pending';
-  const appApproved = myApp?.status==='approved';
+  // 申請済みかチェック（繰り返し可なら過去の「承認済」は無視し、審査中のものだけブロックする）
+  const myApps = allMissionApps.filter(a=>a.mission_id===m.id&&a.applicant_id===u.id);
+  const myPendingApp = myApps.find(a=>a.status==='pending');
+  const myApprovedApp = myApps.find(a=>a.status==='approved');
+  const applied = !!myPendingApp;
+  const appApproved = !m.is_repeatable && !!myApprovedApp;
 
   let actionBtn = '';
   if(isMyMission && m.approval_type==='owner'){
