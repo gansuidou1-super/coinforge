@@ -454,7 +454,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
   </div>
   <!-- 交換所 -->
   <div class="tab-content" id="ptab-shop">
-    <div class="section">
+    <div class="section" id="exchange-my-section">
       <div class="section-header">
         <span class="section-title">自分の交換メニュー</span>
         <button class="btn btn-sm btn-primary" onclick="showModal('create-exchange-modal')">＋ 作成</button>
@@ -464,6 +464,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
     </div>
     <div class="section" style="padding-top:0;">
       <div class="section-header"><span class="section-title">みんなの交換メニュー</span></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">お持ちのコインで交換できるメニューです。</div>
       <div id="exchange-all"></div><div class="empty" id="exchange-all-empty">交換メニューがありません</div>
     </div>
   </div>
@@ -1361,11 +1362,13 @@ function renderCommunity(u){
 function renderProfile(u){
   // コイン発行者かどうかでタブを表示切替
   const isCoinOwner = myCoins.length > 0;
+  // 何かしらコインを保有しているか（発行者でなくても交換所は使える）
+  const hasAnyCoin = Object.keys(myWallets).some(s=>myWallets[s]>0);
   // 管理者タブ
   const adminBtn = document.getElementById('ptab-btn-admin');
   if(adminBtn) adminBtn.style.display = window.isAdmin ? '' : 'none';
   document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
-  document.getElementById('ptab-btn-shop').style.display = isCoinOwner ? '' : 'none';
+  document.getElementById('ptab-btn-shop').style.display = (isCoinOwner || hasAnyCoin) ? '' : 'none';
   document.getElementById('prof-avatar').textContent=u.icon||'😊';
   document.getElementById('prof-name').textContent=u.name;
   document.getElementById('prof-handle').textContent='@'+u.handle;
@@ -1383,6 +1386,9 @@ function renderProfile(u){
     cml.innerHTML=myCoins.map(c=>'<div class="coin-mgmt-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div class="coin-badge sm">'+c.symbol.slice(0,3)+'</div><div style="flex:1;"><div style="font-size:15px;font-weight:700;">'+c.name+' <span style="font-size:13px;color:var(--text2);">('+c.symbol+')</span></div><div style="font-size:12px;color:var(--text2);">残高: '+myBal(c.symbol).toLocaleString()+'</div>'+(c.unit_value?'<div class="value-badge">1'+c.symbol+'≈'+c.unit_value+c.unit_label+'</div>':'')+'</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><button class="btn btn-sm btn-primary" onclick="openCoinOp(\''+c.symbol+'\',\'mint_more\')">➕ 追加発行</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'burn\')">🔥 焼却</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'split\')">✂ 分割</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'merge\')">🔗 併合</button></div><button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;" onclick="openCoinValueModal(\''+c.symbol+'\')">💱 価値目安を設定</button></div>').join('');}
 }
 function renderExShop(u){
+  // コイン発行者でなければ「自分の交換メニュー」セクション自体を非表示
+  const myShopSection=document.getElementById('exchange-my-section');
+  if(myShopSection) myShopSection.style.display = myCoins.length>0 ? '' : 'none';
   const myItems=allExItems.filter(x=>x.owner_id===u.id);
   const ml=document.getElementById('exchange-my'),me3=document.getElementById('exchange-my-empty');
   if(myItems.length===0){ml.innerHTML='';me3.style.display='block';}
