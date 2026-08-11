@@ -1,5 +1,5 @@
-// v4 - force cache clear
-const CACHE = 'coinforge-v4';
+// v5 - exchange visible to coin holders
+const CACHE = 'coinforge-v5';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
