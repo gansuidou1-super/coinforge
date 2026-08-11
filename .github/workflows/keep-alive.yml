@@ -2,8 +2,9 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # 5日ごとに実行（7日休止対策）UTC 0:00
-    - cron: '0 0 */5 * *'
+    # 毎日 UTC 0:00 に実行。「*/5」等の日付ステップ指定は月またぎで
+    # 最大1ヶ月近く空くことがあるため使わない（毎日実行してもコストはほぼゼロ）
+    - cron: '0 0 * * *'
   workflow_dispatch: # 手動実行も可能
 
 jobs:
@@ -20,5 +21,6 @@ jobs:
           if [ "$response" = "200" ]; then
             echo "✅ Supabase is alive!"
           else
-            echo "⚠️ Unexpected response: $response"
+            echo "::error::Supabase ping failed with status $response"
+            exit 1
           fi
