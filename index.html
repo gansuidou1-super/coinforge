@@ -189,6 +189,10 @@ select.form-input option{background:var(--card2);color:var(--text);}
 </head>
 <body>
 <div id="app">
+<div id="pull-refresh-indicator" style="position:absolute;top:0;left:0;right:0;z-index:50;display:flex;justify-content:center;align-items:center;height:0;overflow:hidden;transition:height .2s ease;color:var(--text3);font-size:12px;gap:6px;background:var(--bg);">
+  <svg id="pull-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:16px;height:16px;stroke-width:2;transition:transform .2s ease;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+  <span id="pull-refresh-text">引っ張って更新</span>
+</div>
 <div class="toast" id="toast"></div>
 
 <!-- Loading -->
@@ -304,10 +308,6 @@ select.form-input option{background:var(--card2);color:var(--text);}
       </button>
     </div>
   </div>
-  <div id="pull-refresh-indicator" style="display:flex;justify-content:center;align-items:center;height:0;overflow:hidden;transition:height .2s ease;color:var(--text3);font-size:12px;gap:6px;">
-    <svg id="pull-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:16px;height:16px;stroke-width:2;transition:transform .2s ease;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-    <span id="pull-refresh-text">引っ張って更新</span>
-  </div>
   <div class="balance-card">
     <div class="balance-label" id="home-label">残高</div>
     <div style="display:flex;align-items:baseline;gap:4px;">
@@ -347,7 +347,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 
 <!-- WALLET -->
 <div class="screen" id="screen-wallet">
-  <div class="header"><h1>ウォレット</h1><button class="btn btn-sm btn-primary" onclick="showModal('create-coin-modal')">＋ コイン作成</button></div>
+  <div class="header"><h1>ウォレット</h1><div style="display:flex;align-items:center;gap:6px;"><button onclick="manualRefresh()" style="background:none;border:none;cursor:pointer;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:19px;height:19px;stroke-width:2;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button><button class="btn btn-sm btn-primary" onclick="showModal('create-coin-modal')">＋ コイン作成</button></div></div>
   <div class="section">
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n" id="w-total">0</div><div class="stat-l">総コイン数</div></div>
@@ -367,7 +367,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 
 <!-- COMMUNITY -->
 <div class="screen" id="screen-community">
-  <div class="header"><h1>コミュニティ</h1><button class="btn btn-sm btn-primary" onclick="showModal('create-comm-modal')">＋ 作成</button></div>
+  <div class="header"><h1>コミュニティ</h1><div style="display:flex;align-items:center;gap:6px;"><button onclick="manualRefresh()" style="background:none;border:none;cursor:pointer;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:19px;height:19px;stroke-width:2;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button><button class="btn btn-sm btn-primary" onclick="showModal('create-comm-modal')">＋ 作成</button></div></div>
   <div class="section">
     <div class="section-header"><span class="section-title">コミュニティ</span></div>
     <div id="comm-list"></div><div class="empty" id="comm-empty">コミュニティを作成してはじめよう</div>
@@ -394,7 +394,7 @@ select.form-input option{background:var(--card2);color:var(--text);}
 
 <!-- MARKET -->
 <div class="screen" id="screen-market">
-  <div class="header"><h1>マーケット</h1></div>
+  <div class="header"><h1>マーケット</h1><button onclick="manualRefresh()" style="background:none;border:none;cursor:pointer;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:19px;height:19px;stroke-width:2;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button></div>
   <div class="section" style="padding-bottom:8px;">
     <div class="info-box"><span class="realtime-dot"></span>自分が発行したコインの保有状況・全取引履歴が見られます</div>
   </div>
@@ -421,7 +421,8 @@ select.form-input option{background:var(--card2);color:var(--text);}
 
 <!-- PROFILE -->
 <div class="screen" id="screen-profile">
-  <div class="profile-header">
+  <div class="profile-header" style="position:relative;">
+    <button onclick="manualRefresh()" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;padding:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:19px;height:19px;stroke-width:2;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>
     <div class="profile-avatar" id="prof-avatar">😊</div>
     <div style="font-size:19px;font-weight:700;" id="prof-name">---</div>
     <div style="font-size:13px;color:var(--text2);margin-top:3px;" id="prof-handle">---</div>
@@ -1307,51 +1308,54 @@ async function manualRefresh(showToastMsg=true){
   }
 }
 
-// プルトゥリフレッシュ（ホーム画面を一番上までスクロールした状態で下にスワイプ）
+// プルトゥリフレッシュ（どの画面でも、一番上までスクロールした状態で下にスワイプ）
 (function setupPullToRefresh(){
-  const home = document.getElementById('screen-home');
+  const screens = document.querySelectorAll('.screen');
   const indicator = document.getElementById('pull-refresh-indicator');
   const pIcon = document.getElementById('pull-refresh-icon');
   const pText = document.getElementById('pull-refresh-text');
-  if(!home || !indicator) return;
-  let startY = 0, pulling = false, triggered = false;
+  if(!screens.length || !indicator) return;
+  let startY = 0, pulling = false, triggered = false, activeScreen = null;
   const THRESHOLD = 70;
 
-  home.addEventListener('touchstart', (e)=>{
-    if(home.scrollTop <= 0){ startY = e.touches[0].clientY; pulling = true; triggered = false; }
-    else pulling = false;
-  }, {passive:true});
+  screens.forEach(screen=>{
+    screen.addEventListener('touchstart', (e)=>{
+      if(!screen.classList.contains('active')) return;
+      if(screen.scrollTop <= 0){ startY = e.touches[0].clientY; pulling = true; triggered = false; activeScreen = screen; }
+      else pulling = false;
+    }, {passive:true});
 
-  home.addEventListener('touchmove', (e)=>{
-    if(!pulling) return;
-    const diff = e.touches[0].clientY - startY;
-    if(diff > 0 && home.scrollTop <= 0){
-      const h = Math.min(diff * 0.5, 90);
-      indicator.style.height = h + 'px';
-      if(h >= THRESHOLD){
-        triggered = true;
-        pText.textContent = '離して更新';
-        pIcon.style.transform = 'rotate(180deg)';
-      } else {
-        triggered = false;
-        pText.textContent = '引っ張って更新';
-        pIcon.style.transform = 'rotate(0deg)';
+    screen.addEventListener('touchmove', (e)=>{
+      if(!pulling || activeScreen !== screen) return;
+      const diff = e.touches[0].clientY - startY;
+      if(diff > 0 && screen.scrollTop <= 0){
+        const h = Math.min(diff * 0.5, 90);
+        indicator.style.height = h + 'px';
+        if(h >= THRESHOLD){
+          triggered = true;
+          pText.textContent = '離して更新';
+          pIcon.style.transform = 'rotate(180deg)';
+        } else {
+          triggered = false;
+          pText.textContent = '引っ張って更新';
+          pIcon.style.transform = 'rotate(0deg)';
+        }
       }
-    }
-  }, {passive:true});
+    }, {passive:true});
 
-  home.addEventListener('touchend', async ()=>{
-    if(!pulling) return;
-    pulling = false;
-    if(triggered){
-      pText.textContent = '更新中...';
-      await manualRefresh(false);
-      toast('更新しました');
-    }
-    indicator.style.height = '0px';
-    pText.textContent = '引っ張って更新';
-    pIcon.style.transform = 'rotate(0deg)';
-  }, {passive:true});
+    screen.addEventListener('touchend', async ()=>{
+      if(!pulling || activeScreen !== screen) return;
+      pulling = false;
+      if(triggered){
+        pText.textContent = '更新中...';
+        await manualRefresh(false);
+        toast('更新しました');
+      }
+      indicator.style.height = '0px';
+      pText.textContent = '引っ張って更新';
+      pIcon.style.transform = 'rotate(0deg)';
+    }, {passive:true});
+  });
 })();
 
 function renderAll(){
