@@ -1,5 +1,5 @@
-// v6 - fix stale action list + pull-to-refresh
-const CACHE = 'coinforge-v6';
+// v7 - refresh button & pull-to-refresh on all screens
+const CACHE = 'coinforge-v7';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
