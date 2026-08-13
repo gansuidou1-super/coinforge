@@ -1,5 +1,5 @@
-// v5 - exchange visible to coin holders
-const CACHE = 'coinforge-v5';
+// v6 - fix stale action list + pull-to-refresh
+const CACHE = 'coinforge-v6';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
