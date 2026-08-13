@@ -1,35 +1,2548 @@
-// v6 - fix stale action list + pull-to-refresh
-const CACHE = 'coinforge-v6';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CoinForge">
+<meta name="theme-color" content="#7C3AED">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CoinForge">
+<link rel="apple-touch-startup-image" href="/icon.svg">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237C3AED'/><circle cx='50' cy='50' r='34' fill='none' stroke='%23F59E0B' stroke-width='6'/><circle cx='50' cy='50' r='24' fill='%23F59E0B' opacity='0.15'/><text x='50' y='58' text-anchor='middle' fill='%23FCD34D' font-size='32' font-weight='900' font-family='sans-serif'>C</text></svg>">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>CoinForge</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0F0A1E;--bg2:#1A1030;--bg3:#231544;--card:#1E1338;--card2:#271B45;
+  --purple:#7C3AED;--purple-l:#9D5FF0;--gold:#F59E0B;--gold-l:#FCD34D;
+  --text:#F0E8FF;--text2:#A78BCA;--text3:#6B5A8A;--border:#2D1F50;
+  --green:#10B981;--red:#EF4444;--radius:16px;--nav-h:70px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Hiragino Kochi Pro','Hiragino Sans','Yu Gothic UI',sans-serif;}
+#app{height:100%;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;bottom:calc(var(--nav-h) + var(--safe-b));overflow-y:auto;
+  overflow-x:hidden;display:none;background:var(--bg);-webkit-overflow-scrolling:touch;}
+.screen.active{display:block;}
+.screen::-webkit-scrollbar{display:none;}
+nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--safe-b));
+  padding-bottom:var(--safe-b);background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-around;padding-top:8px;z-index:100;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;
+  color:var(--text3);font-size:10px;padding:4px 12px;cursor:pointer;transition:.2s;}
+.nav-btn.active{color:var(--purple-l);}
+.nav-btn svg{width:24px;height:24px;stroke-width:1.8;}
+.header{padding:14px 20px 8px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border);}
+.header h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--gold-l),var(--purple-l));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.balance-card{margin:12px 20px;background:linear-gradient(135deg,var(--bg3),var(--card2));
+  border:1px solid var(--purple);border-radius:20px;padding:22px;position:relative;overflow:hidden;}
+.balance-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;
+  border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.3),transparent);pointer-events:none;}
+.balance-label{font-size:13px;color:var(--text2);margin-bottom:4px;}
+.balance-amount{font-size:34px;font-weight:800;background:linear-gradient(135deg,var(--gold-l),#fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.balance-actions{display:flex;gap:10px;margin-top:16px;}
+.btn{padding:10px 20px;border-radius:12px;border:none;font-size:14px;font-weight:600;
+  cursor:pointer;transition:.15s;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--purple);color:#fff;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#D97706);color:#7A3A00;}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-danger{background:transparent;color:var(--red);border:1px solid var(--red);}
+.btn-sm{padding:7px 14px;font-size:13px;border-radius:10px;flex:none;}
+.section{padding:16px 20px;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
+.list-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);
+  border-radius:12px;margin-bottom:8px;}
+.list-item-info{flex:1;min-width:0;}
+.list-item-info h3{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.list-item-info p{font-size:13px;color:var(--text2);margin-top:2px;}
+.amount{font-size:16px;font-weight:700;}
+.amount.pos{color:var(--green);}
+.amount.neg{color:var(--red);}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--bg3);display:flex;
+  align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:2px solid var(--border);}
+.coin-badge{width:42px;height:42px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,var(--gold-l),var(--gold));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;
+  color:#7A4A00;box-shadow:0 0 12px rgba(245,158,11,.4);flex-shrink:0;}
+.coin-badge.sm{width:32px;height:32px;font-size:10px;}
+.feed-item{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;}
+.feed-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;margin-top:6px;}
+.feed-text{font-size:14px;line-height:1.5;}
+.feed-text strong{color:var(--gold-l);}
+.feed-time{font-size:12px;color:var(--text3);margin-top:3px;}
+.mission-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;}
+.mission-reward{background:linear-gradient(135deg,var(--bg3),var(--card2));border:1px solid var(--gold);
+  border-radius:10px;padding:8px 10px;text-align:center;flex-shrink:0;min-width:60px;}
+.mission-reward .rew-n{font-size:15px;font-weight:800;color:var(--gold-l);}
+.mission-reward .rew-s{font-size:10px;color:var(--text2);}
+.mission-info{flex:1;min-width:0;}
+.mission-info h3{font-size:14px;font-weight:600;}
+.mission-info p{font-size:12px;color:var(--text2);margin-top:3px;}
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.stat-box .stat-n{font-size:22px;font-weight:800;color:var(--gold-l);}
+.stat-box .stat-l{font-size:12px;color:var(--text2);margin-top:2px;}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal-overlay.top{z-index:500;}
+.modal-overlay.center{align-items:center;justify-content:center;}
+.modal{background:var(--bg2);border-radius:24px 24px 0 0;padding:24px 20px;width:100%;
+  max-height:88vh;overflow-y:auto;border-top:1px solid var(--border);}
+.modal.center-modal{border-radius:20px;max-width:340px;margin:0 20px;}
+.modal::-webkit-scrollbar{display:none;}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:20px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block;font-weight:500;}
+.form-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;color:var(--text);font-size:15px;outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--purple);}
+select.form-input option{background:var(--card2);color:var(--text);}
+.toast{position:absolute;top:16px;left:20px;right:20px;background:var(--card2);
+  border:1px solid var(--green);border-radius:12px;padding:12px 16px;font-size:14px;
+  font-weight:500;color:var(--green);z-index:999;transform:translateY(-120px);transition:.3s;text-align:center;}
+.toast.show{transform:translateY(0);}
+/* PIN */
+.pin-screen{position:absolute;inset:0;background:var(--bg);z-index:400;
+  display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px;}
+.pin-screen.show{display:flex;}
+.pin-dots{display:flex;gap:16px;margin:24px 0;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:.2s;}
+.pin-dot.filled{background:var(--purple);border-color:var(--purple);}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px;}
+.pin-key{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:18px;font-size:22px;font-weight:600;cursor:pointer;text-align:center;transition:.15s;color:var(--text);}
+.pin-key:active{background:var(--purple);transform:scale(.95);}
+.pin-error{color:var(--red);font-size:13px;margin-top:8px;min-height:20px;}
+/* Loading */
+.loading-screen{position:absolute;inset:0;background:var(--bg);z-index:600;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-logo{width:72px;height:72px;background:linear-gradient(135deg,var(--purple),var(--gold));
+  border-radius:22px;display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:800;color:#fff;box-shadow:0 0 36px rgba(124,58,237,.4);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--purple);
+  border-radius:50%;animation:spin .8s linear infinite;}
+/* User select */
+.user-select-screen{position:absolute;inset:0;background:var(--bg);z-index:300;
+  display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px;overflow-y:auto;}
+.app-logo{width:72px;height:72px;background:linear-gradient(135deg,var(--purple),var(--gold));
+  border-radius:22px;display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:800;color:#fff;margin:0 auto 16px;box-shadow:0 0 36px rgba(124,58,237,.4);}
+.user-card{background:var(--card);border:2px solid var(--border);border-radius:16px;
+  padding:20px 16px;cursor:pointer;transition:.2s;text-align:center;flex:1;min-width:120px;}
+.user-card:active{border-color:var(--purple);background:rgba(124,58,237,.1);}
+.user-card-icon{font-size:38px;margin-bottom:8px;}
+.user-card h3{font-size:15px;font-weight:700;}
+.user-card p{font-size:12px;color:var(--text2);margin-top:3px;}
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:20px;padding:4px 10px;cursor:pointer;}
+.user-chip span{font-size:13px;font-weight:600;}
+.info-box{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.3);
+  border-radius:12px;padding:14px;font-size:13px;line-height:1.65;color:var(--text2);}
+.mkt-row{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.profile-header{background:linear-gradient(180deg,var(--bg3) 0%,var(--bg) 100%);
+  padding:28px 20px 20px;text-align:center;}
+.profile-avatar{width:76px;height:76px;border-radius:50%;
+  background:linear-gradient(135deg,var(--purple),var(--gold));
+  margin:0 auto 10px;display:flex;align-items:center;justify-content:center;
+  font-size:30px;border:3px solid var(--border);}
+.progress-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:3px;}
+.qr-mock{width:140px;height:140px;margin:16px auto;background:var(--card);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:72px;border:1px solid var(--border);}
+.empty{text-align:center;padding:28px;color:var(--text3);font-size:14px;display:none;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.realtime-dot{width:7px;height:7px;border-radius:50%;background:var(--green);
+  display:inline-block;margin-right:5px;animation:pulse 2s infinite;}
+.shop-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.shop-icon{width:44px;height:44px;border-radius:10px;background:var(--bg3);
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.shop-info{flex:1;min-width:0;}
+.shop-info h3{font-size:14px;font-weight:600;}
+.shop-info p{font-size:12px;color:var(--text2);margin-top:2px;}
+.value-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,.1);
+  border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:3px 8px;
+  font-size:11px;color:var(--green);font-weight:600;margin-top:4px;}
+.tab-bar{display:flex;gap:4px;padding:8px 20px;}
+.tab-btn{flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;
+  cursor:pointer;background:transparent;color:var(--text3);transition:.2s;}
+.tab-btn.active{background:var(--bg3);color:var(--text);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.coin-mgmt-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="toast" id="toast"></div>
 
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
+<!-- Loading -->
+<div class="loading-screen" id="loading-screen">
+  <div class="loading-logo">C</div>
+  <div class="spinner"></div>
+  <div style="font-size:13px;color:var(--text2);">接続中...</div>
+</div>
+
+<!-- PIN画面 -->
+<div class="pin-screen" id="pin-screen">
+  <div style="font-size:48px;margin-bottom:8px;" id="pin-user-icon">😊</div>
+  <div style="font-size:20px;font-weight:700;" id="pin-user-name">---</div>
+  <div style="font-size:13px;color:var(--text2);margin-top:4px;" id="pin-label">PINを入力してください</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key" style="font-size:13px;color:var(--text2);" onclick="goToUserSelect()">戻る</button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key" onclick="pinDel()">⌫</button>
+  </div>
+</div>
+
+<!-- ログイン画面 -->
+<div class="user-select-screen" id="login-screen" style="display:none;">
+  <div class="app-logo">C</div>
+  <h1 style="font-size:26px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--gold-l),var(--purple-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CoinForge</h1>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:28px;">コミュニティ経済圏プラットフォーム</p>
+
+  <!-- Googleログイン -->
+  <button onclick="loginWithGoogle()" style="width:100%;background:#fff;color:#333;border:1px solid #ddd;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;">
+    <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Googleでログイン
+  </button>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+    <span style="font-size:12px;color:var(--text3);">または</span>
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+  </div>
+
+  <!-- メール/パスワード -->
+  <div id="login-form">
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input class="form-input" type="email" id="login-email" placeholder="example@gmail.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">パスワード</label>
+      <input class="form-input" type="password" id="login-password" placeholder="パスワード" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:10px;" onclick="loginWithEmail()">ログイン</button>
+    <button class="btn btn-outline" style="width:100%;padding:12px;font-size:13px;" onclick="showSignup()">アカウントを作成する</button>
+    <button onclick="forgotPassword()" style="width:100%;background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;margin-top:8px;padding:6px;">パスワードを忘れた方はこちら</button>
+  </div>
+
+  <!-- 新規登録フォーム（初期非表示） -->
+  <div id="signup-form" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">名前</label>
+      <input class="form-input" type="text" id="signup-name" placeholder="例: さとし" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン（絵文字）</label>
+      <input class="form-input" type="text" id="signup-icon" placeholder="😊" maxlength="2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ハンドル名（英数字）</label>
+      <input class="form-input" type="text" id="signup-handle" placeholder="satoshi" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input class="form-input" type="email" id="signup-email" placeholder="example@gmail.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">パスワード（6文字以上）</label>
+      <input class="form-input" type="password" id="signup-password" placeholder="パスワード" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:10px;" onclick="signUp()">登録する</button>
+    <button class="btn btn-outline" style="width:100%;padding:12px;font-size:13px;" onclick="showLogin()">ログイン画面に戻る</button>
+  </div>
+
+  <div id="auth-error" style="color:var(--red);font-size:13px;margin-top:12px;text-align:center;"></div>
+</div>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="header">
+    <h1>CoinForge</h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="user-chip" onclick="showModal('settings-modal')">
+        <span id="hdr-icon">😊</span><span id="hdr-name">---</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:13px;height:13px;stroke-width:2.5;"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;cursor:pointer;position:relative;">
+        <svg id="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:20px;height:20px;stroke-width:2;transition:transform .5s ease;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      </button>
+      <button onclick="showModal('notif-modal')" style="background:none;border:none;cursor:pointer;position:relative;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--text2)" style="width:23px;height:23px;stroke-width:1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;width:9px;height:9px;background:var(--red);border-radius:50%;border:2px solid var(--bg);"></span>
+      </button>
+    </div>
+  </div>
+  <div id="pull-refresh-indicator" style="display:flex;justify-content:center;align-items:center;height:0;overflow:hidden;transition:height .2s ease;color:var(--text3);font-size:12px;gap:6px;">
+    <svg id="pull-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" style="width:16px;height:16px;stroke-width:2;transition:transform .2s ease;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+    <span id="pull-refresh-text">引っ張って更新</span>
+  </div>
+  <div class="balance-card">
+    <div class="balance-label" id="home-label">残高</div>
+    <div style="display:flex;align-items:baseline;gap:4px;">
+      <div class="balance-amount" id="total-balance">0</div>
+      <div style="font-size:15px;color:var(--text2);">コイン</div>
+    </div>
+    <div style="margin-top:5px;font-size:12px;color:var(--text2);" id="home-summary"></div>
+    <div id="home-value-est" style="margin-top:4px;font-size:12px;color:var(--green);display:none;">≈ <span id="home-value-num"></span></div>
+    <div class="balance-actions">
+      <button class="btn btn-gold" onclick="openSendModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>送金
+      </button>
+      <button class="btn btn-outline" onclick="showModal('pay-request-modal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:15px;height:15px;stroke-width:2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>請求
+      </button>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">保有コイン</span>
+      <button style="font-size:13px;color:var(--purple-l);background:none;border:none;cursor:pointer;" onclick="switchTab('wallet')">すべて見る</button>
+    </div>
+    <div id="home-coins"></div>
+    <div class="empty" id="home-coins-empty">コインを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;" id="home-notif-section" style="display:none;">
+    <div class="section-header"><span class="section-title">⚡ 対応が必要です</span></div>
+    <div id="home-action-list"></div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">最近の活動</span></div>
+    <div id="home-feed"></div>
+    <div class="empty" id="home-feed-empty">まだ活動がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- WALLET -->
+<div class="screen" id="screen-wallet">
+  <div class="header"><h1>ウォレット</h1><button class="btn btn-sm btn-primary" onclick="showModal('create-coin-modal')">＋ コイン作成</button></div>
+  <div class="section">
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-n" id="w-total">0</div><div class="stat-l">総コイン数</div></div>
+      <div class="stat-box"><div class="stat-n" id="w-txc">0</div><div class="stat-l">取引回数</div></div>
+    </div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">保有コイン</span></div>
+    <div id="w-coins"></div><div class="empty" id="w-coins-empty">コインを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">取引履歴</span></div>
+    <div id="w-tx"></div><div class="empty" id="w-tx-empty">取引履歴がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- COMMUNITY -->
+<div class="screen" id="screen-community">
+  <div class="header"><h1>コミュニティ</h1><button class="btn btn-sm btn-primary" onclick="showModal('create-comm-modal')">＋ 作成</button></div>
+  <div class="section">
+    <div class="section-header"><span class="section-title">コミュニティ</span></div>
+    <div id="comm-list"></div><div class="empty" id="comm-empty">コミュニティを作成してはじめよう</div>
+  </div>
+  <div class="section" style="padding-top:0;">
+    <div class="section-header">
+      <span class="section-title">ミッション</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="showModal('propose-mission-modal')">💡 提案</button>
+        <button class="btn btn-sm btn-primary" onclick="showModal('create-mission-modal')">＋ 作成</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:12px;">
+      <button class="tab-btn active" id="mtab-public" onclick="switchMTab('public',this)" style="font-size:12px;padding:6px;">公開</button>
+      <button class="tab-btn" id="mtab-private" onclick="switchMTab('private',this)" style="font-size:12px;padding:6px;">専用</button>
+      <button class="tab-btn" id="mtab-proposal" onclick="switchMTab('proposal',this)" style="font-size:12px;padding:6px;">提案</button>
+      <button class="tab-btn" id="mtab-apply" onclick="switchMTab('apply',this)" style="font-size:12px;padding:6px;">申請</button>
+    </div>
+    <div id="mission-list"></div>
+    <div class="empty" id="mission-empty">ミッションを作成してはじめよう</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- MARKET -->
+<div class="screen" id="screen-market">
+  <div class="header"><h1>マーケット</h1></div>
+  <div class="section" style="padding-bottom:8px;">
+    <div class="info-box"><span class="realtime-dot"></span>自分が発行したコインの保有状況・全取引履歴が見られます</div>
+  </div>
+  <!-- コイン選択タブ -->
+  <div class="section" style="padding-top:0;padding-bottom:0;">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;">
+      <div style="display:flex;gap:6px;width:max-content;" id="mkt-coin-tabs"></div>
+    </div>
+  </div>
+  <!-- 保有者一覧 -->
+  <div class="section" style="padding-top:12px;">
+    <div class="section-header"><span class="section-title">保有者</span></div>
+    <div id="mkt-holders"></div>
+    <div class="empty" id="mkt-holders-empty">保有者がいません</div>
+  </div>
+  <!-- 取引履歴 -->
+  <div class="section" style="padding-top:0;">
+    <div class="section-header"><span class="section-title">取引履歴</span></div>
+    <div id="mkt-tx"></div>
+    <div class="empty" id="mkt-tx-empty">取引がありません</div>
+  </div>
+  <div style="height:20px;"></div>
+</div>
+
+<!-- PROFILE -->
+<div class="screen" id="screen-profile">
+  <div class="profile-header">
+    <div class="profile-avatar" id="prof-avatar">😊</div>
+    <div style="font-size:19px;font-weight:700;" id="prof-name">---</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:3px;" id="prof-handle">---</div>
+    <div style="display:flex;gap:20px;justify-content:center;margin-top:14px;">
+      <div style="text-align:center;"><div style="font-size:17px;font-weight:700;" id="prof-coins">0</div><div style="font-size:11px;color:var(--text2);">コイン種類</div></div>
+      <div style="text-align:center;"><div style="font-size:17px;font-weight:700;" id="prof-txc">0</div><div style="font-size:11px;color:var(--text2);">取引回数</div></div>
+      <div style="text-align:center;"><div style="font-size:17px;font-weight:700;" id="prof-mc">0</div><div style="font-size:11px;color:var(--text2);">ミッション達成</div></div>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchPTab('my',this)">マイページ</button>
+    <button class="tab-btn" id="ptab-btn-coin" onclick="switchPTab('coin',this)" style="display:none;">コイン管理</button>
+    <button class="tab-btn" id="ptab-btn-shop" onclick="switchPTab('shop',this)" style="display:none;">交換所</button>
+    <button class="tab-btn" id="ptab-btn-admin" onclick="switchPTab('admin',this)" style="display:none;color:var(--gold);font-weight:700;">🛡 管理</button>
+  </div>
+  <!-- マイページ -->
+  <div class="tab-content active" id="ptab-my">
+    <div class="section">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">ミッション達成率</div>
+        <div style="font-size:26px;font-weight:800;color:var(--gold-l);margin-bottom:8px;" id="prof-rate">0%</div>
+        <div class="progress-bar"><div class="progress-fill" id="prof-bar" style="width:0%;"></div></div>
+      </div>
+    </div>
+    <div class="section" style="padding-top:0;">
+      <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('settings-modal')">⚙ アカウント設定</button>
+      <button class="btn btn-danger" style="width:100%;" onclick="confirmDelete()">🗑 アカウントを削除する</button>
+    </div>
+  </div>
+  <!-- コイン管理 -->
+  <div class="tab-content" id="ptab-coin">
+    <div class="section">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">あなたが発行したコインを管理できます。</div>
+      <div id="coin-mgmt-list"></div>
+      <div class="empty" id="coin-mgmt-empty">発行したコインがありません</div>
+    </div>
+  </div>
+  <!-- 交換所 -->
+  <div class="tab-content" id="ptab-shop">
+    <div class="section" id="exchange-my-section">
+      <div class="section-header">
+        <span class="section-title">自分の交換メニュー</span>
+        <button class="btn btn-sm btn-primary" onclick="showModal('create-exchange-modal')">＋ 作成</button>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">利用者がボタンを押すとコインがあなたに戻ります。</div>
+      <div id="exchange-my"></div><div class="empty" id="exchange-my-empty">交換メニューがありません</div>
+    </div>
+    <div class="section" style="padding-top:0;">
+      <div class="section-header"><span class="section-title">みんなの交換メニュー</span></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">お持ちのコインで交換できるメニューです。</div>
+      <div id="exchange-all"></div><div class="empty" id="exchange-all-empty">交換メニューがありません</div>
+    </div>
+  </div>
+  <!-- 管理タブ -->
+  <div class="tab-content" id="ptab-admin">
+    <div class="section">
+      <div class="info-box" style="margin-bottom:14px;">
+        🛡 管理者専用画面です。ユーザー管理・データ操作ができます。
+      </div>
+
+      <div class="section-header" style="margin-bottom:10px;">
+        <span class="section-title">ユーザー管理</span>
+        <button class="btn btn-sm btn-outline" onclick="loadAdminUsers()">🔄 更新</button>
+      </div>
+      <div id="admin-user-list"></div>
+      <div class="empty" id="admin-user-empty">ユーザーがいません</div>
+    </div>
+
+    <div class="section" style="padding-top:0;">
+      <div class="section-header" style="margin-bottom:10px;">
+        <span class="section-title">データクリーン</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-outline" style="width:100%;" onclick="adminDeleteOrphanWallets()">
+          🧹 孤立ウォレットを削除
+        </button>
+        <button class="btn btn-danger" style="width:100%;" onclick="adminDeleteAllData()">
+          ⚠ 全テストデータを削除
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:20px;"></div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <button class="nav-btn active" id="nav-home" onclick="switchTab('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>ホーム</button>
+  <button class="nav-btn" id="nav-wallet" onclick="switchTab('wallet')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>ウォレット</button>
+  <button class="nav-btn" id="nav-community" onclick="switchTab('community')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>コミュニティ</button>
+  <button class="nav-btn" id="nav-market" onclick="switchTab('market')" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>マーケット</button>
+  <button class="nav-btn" id="nav-profile" onclick="switchTab('profile')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>プロフィール</button>
+</nav>
+
+<!-- MODALS -->
+<div class="modal-overlay top" id="add-user-modal" onclick="closeBg(event,'add-user-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>ユーザー追加</h2>
+    <div class="form-group"><label class="form-label">名前</label><input class="form-input" type="text" placeholder="例: さとし" id="nu-name"></div>
+    <div class="form-group"><label class="form-label">アイコン（絵文字）</label><input class="form-input" type="text" placeholder="😊" id="nu-icon" maxlength="2"></div>
+    <div class="form-group"><label class="form-label">ハンドル名（英数字）</label><input class="form-input" type="text" placeholder="satoshi" id="nu-handle"></div>
+    <input type="hidden" id="nu-pin" value="">
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:500;">PIN（4桁）※後から設定もできます</div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:10px;">
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd0"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd1"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd2"></div>
+        <div style="width:12px;height:12px;border-radius:50%;border:2px solid var(--border);" id="nupd3"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto;">
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('1')">1</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('2')">2</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('3')">3</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('4')">4</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('5')">5</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('6')">6</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('7')">7</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('8')">8</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('9')">9</button>
+        <button class="pin-key" style="padding:14px;font-size:12px;color:var(--text2);" onclick="nuPinClear()">なし</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinKey('0')">0</button>
+        <button class="pin-key" style="padding:14px;" onclick="nuPinDel()">⌫</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="addUser()">追加する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pin-setup-modal" onclick="closeBg(event,'pin-setup-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>🔐 PIN設定・変更</h2>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;">4桁のPINを設定するとログイン時に本人確認が必要になります。</div>
+    <input type="hidden" id="new-pin" value="">
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;" id="setup-pin-label">新しいPINを入力してください</div>
+      <div style="display:flex;gap:14px;justify-content:center;margin-bottom:16px;" id="setup-pin-dots">
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd0"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd1"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd2"></div>
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);" id="spd3"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:260px;margin:0 auto 16px;">
+        <button class="pin-key" onclick="setupPinKey('1')">1</button>
+        <button class="pin-key" onclick="setupPinKey('2')">2</button>
+        <button class="pin-key" onclick="setupPinKey('3')">3</button>
+        <button class="pin-key" onclick="setupPinKey('4')">4</button>
+        <button class="pin-key" onclick="setupPinKey('5')">5</button>
+        <button class="pin-key" onclick="setupPinKey('6')">6</button>
+        <button class="pin-key" onclick="setupPinKey('7')">7</button>
+        <button class="pin-key" onclick="setupPinKey('8')">8</button>
+        <button class="pin-key" onclick="setupPinKey('9')">9</button>
+        <button class="pin-key" onclick="setupPinClear()" style="font-size:13px;color:var(--text2);">クリア</button>
+        <button class="pin-key" onclick="setupPinKey('0')">0</button>
+        <button class="pin-key" onclick="setupPinDel()">⌫</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-danger" onclick="clearPin()">PINを解除</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="savePin()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="send-modal" onclick="closeBg(event,'send-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>送金</h2>
+    <div class="form-group"><label class="form-label">送金先</label><select class="form-input" id="s-to"></select></div>
+    <div class="form-group"><label class="form-label">コイン</label><select class="form-input" id="s-coin" onchange="updateSendBal()"></select></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;" id="s-bal"></div>
+    <div class="form-group"><label class="form-label">数量</label><input class="form-input" type="number" placeholder="0" id="s-amount" min="1"></div>
+    <div class="form-group"><label class="form-label">メモ（任意）</label><input class="form-input" type="text" placeholder="ありがとう！" id="s-memo"></div>
+    <button class="btn btn-gold" style="width:100%;font-size:16px;padding:14px;" onclick="doSend()">送金する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="receive-modal" onclick="closeBg(event,'receive-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>受取</h2>
+    <div style="text-align:center;">
+      <div class="qr-mock">📱</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:14px;line-height:1.6;">相手の「送金」画面であなたを選んでもらいましょう</p>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:17px;font-weight:700;color:var(--gold-l);" id="recv-handle">---</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="notif-modal" onclick="closeBg(event,'notif-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>通知</h2>
+    <div id="notif-list"></div><div class="empty" id="notif-empty" style="display:block;">通知はありません</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-coin-modal" onclick="closeBg(event,'create-coin-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>コイン作成</h2>
+    <div class="form-group"><label class="form-label">コイン名</label><input class="form-input" type="text" placeholder="例: Fitness Coin" id="c-name"></div>
+    <div class="form-group"><label class="form-label">シンボル（英大文字2〜6文字）</label><input class="form-input" type="text" placeholder="例: FIT" id="c-sym" maxlength="6"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" placeholder="このコインの用途" id="c-desc"></div>
+    <div class="form-group"><label class="form-label">初期発行数</label><input class="form-input" type="number" placeholder="1000" id="c-supply" min="1"></div>
+    <div class="form-group"><label class="form-label">1コインの価値目安（任意）</label>
+      <div style="display:flex;gap:8px;"><input class="form-input" type="number" placeholder="1" id="c-value" style="flex:1;"><input class="form-input" type="text" placeholder="円" id="c-unit" style="width:80px;"></div>
+    </div>
+    <button class="btn btn-gold" style="width:100%;font-size:15px;padding:14px;" onclick="createCoin()">発行する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="coin-op-modal" onclick="closeBg(event,'coin-op-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2 id="cop-title">コイン操作</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;" id="cop-desc"></div>
+    <div class="form-group" id="cop-amount-g"><label class="form-label" id="cop-amount-l">数量</label><input class="form-input" type="number" placeholder="0" id="cop-amount" min="1"></div>
+    <div class="form-group" id="cop-ratio-g" style="display:none;"><label class="form-label">比率（例: 2 = 1コイン→2コインに分割）</label><input class="form-input" type="number" placeholder="2" id="cop-ratio" min="2"></div>
+    <div class="form-group"><label class="form-label">メモ（任意）</label><input class="form-input" type="text" id="cop-note"></div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="execCoinOp()">実行する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="coin-value-modal" onclick="closeBg(event,'coin-value-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💱 コイン価値の目安を設定</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">1コインが何円（や他の単位）に相当するかを設定します。</div>
+    <div class="form-group"><label class="form-label">1コインの価値</label>
+      <div style="display:flex;gap:8px;"><input class="form-input" type="number" placeholder="1" id="cv-value" style="flex:1;"><input class="form-input" type="text" placeholder="円" id="cv-unit" style="width:80px;"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="saveCoinValue()">保存する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-exchange-modal" onclick="closeBg(event,'create-exchange-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>交換メニュー作成</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">利用者がこのメニューを使うと、設定したコイン数があなたに戻ります。</div>
+    <div class="form-group"><label class="form-label">メニュー名</label><input class="form-input" type="text" placeholder="例: 100円に換金" id="ex-title"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" placeholder="詳細説明" id="ex-desc"></div>
+    <div class="form-group"><label class="form-label">対象コイン</label><select class="form-input" id="ex-coin"></select></div>
+    <div class="form-group"><label class="form-label">必要コイン数</label><input class="form-input" type="number" placeholder="100" id="ex-cost" min="1"></div>
+    <div class="form-group"><label class="form-label">在庫数（空欄=無制限）</label><input class="form-input" type="number" placeholder="無制限" id="ex-stock"></div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="createExchangeItem()">作成する</button>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="exchange-confirm-modal" onclick="closeBg(event,'exchange-confirm-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">🛍 交換しますか？</h2>
+    <div id="exchange-confirm-detail" style="text-align:center;font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('exchange-confirm-modal')">キャンセル</button>
+      <button class="btn btn-gold" onclick="execExchange()">交換する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-comm-modal" onclick="closeBg(event,'create-comm-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>コミュニティ作成</h2>
+    <div class="form-group"><label class="form-label">名前</label><input class="form-input" type="text" placeholder="例: 田中家" id="cm-name"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" placeholder="どんなコミュニティ？" id="cm-desc"></div>
+    <div class="form-group"><label class="form-label">アイコン（絵文字）</label><input class="form-input" type="text" placeholder="👨‍👩‍👧" id="cm-icon" maxlength="4"></div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="createComm()">作成する</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-mission-modal" onclick="closeBg(event,'create-mission-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>ミッション作成</h2>
+    <div class="form-group"><label class="form-label">タイトル</label><input class="form-input" type="text" placeholder="例: 腕立て50回" id="m-title"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" placeholder="達成条件" id="m-desc"></div>
+    <div class="form-group"><label class="form-label">報酬コイン</label><select class="form-input" id="m-coin"></select></div>
+    <div class="form-group"><label class="form-label">報酬数量</label><input class="form-input" type="number" placeholder="10" id="m-reward" min="1"></div>
+    <div class="form-group"><label class="form-label">公開設定</label>
+      <select class="form-input" id="m-visibility" onchange="toggleMissionTarget(this.value)">
+        <option value="public">全員公開</option>
+        <option value="private">特定ユーザー専用</option>
+      </select>
+    </div>
+    <div class="form-group" id="m-target-group" style="display:none;">
+      <label class="form-label">対象ユーザー</label>
+      <select class="form-input" id="m-target-user"></select>
+    </div>
+    <div class="form-group"><label class="form-label">繰り返し</label>
+      <select class="form-input" id="m-repeat">
+        <option value="false">単発（1回のみ）</option>
+        <option value="true">繰り返し可</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">承認方式</label>
+      <select class="form-input" id="m-approval">
+        <option value="self">利用者が申請 → 自分が承認</option>
+        <option value="owner">自分が直接完了マークする</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('create-mission-modal')">キャンセル</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="createMission()">作成する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settings-modal" onclick="closeBg(event,'settings-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>⚙ アカウント設定</h2>
+    <div id="settings-profile"></div>
+
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;">プロフィール編集</div>
+      <div class="form-group">
+        <label class="form-label">アイコン（絵文字）</label>
+        <input class="form-input" type="text" id="edit-icon" maxlength="2" placeholder="😊">
+      </div>
+      <div class="form-group">
+        <label class="form-label">名前</label>
+        <input class="form-input" type="text" id="edit-name" placeholder="例: さとし">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ハンドル名（英数字）</label>
+        <input class="form-input" type="text" id="edit-handle" placeholder="satoshi">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="saveProfile()">✓ プロフィールを保存</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-outline" style="width:100%;" onclick="openInstallModal();closeModal('settings-modal')">📲 アプリとしてインストール</button>
+      <button class="btn btn-outline" style="width:100%;" onclick="showModal('change-password-modal');closeModal('settings-modal')">🔑 パスワードを変更する</button>
+      <button class="btn btn-danger" style="width:100%;" onclick="doSignOut()">🚪 ログアウト</button>
+    </div>
+  </div>
+</div>
+
+<!-- パスワード変更 -->
+<div class="modal-overlay" id="change-password-modal" onclick="closeBg(event,'change-password-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>🔑 パスワード変更</h2>
+    <div class="form-group">
+      <label class="form-label">新しいパスワード（6文字以上）</label>
+      <input class="form-input" type="password" id="new-password" placeholder="新しいパスワード" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="changePassword()">変更する</button>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="mission-done-modal" onclick="closeBg(event,'mission-done-modal')">
+  <div class="modal center-modal" style="text-align:center;">
+    <div style="font-size:56px;margin-bottom:10px;">🎉</div>
+    <h2 style="margin-bottom:8px;">ミッション達成！</h2>
+    <div id="mission-done-text" style="font-size:18px;color:var(--gold-l);font-weight:700;margin-bottom:20px;"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="closeModal('mission-done-modal')">やったー！</button>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="exchange-done-modal" onclick="closeBg(event,'exchange-done-modal')">
+  <div class="modal center-modal" style="text-align:center;">
+    <div style="font-size:56px;margin-bottom:10px;">🛍</div>
+    <h2 style="margin-bottom:8px;">交換完了！</h2>
+    <div id="exchange-done-text" style="font-size:16px;color:var(--gold-l);font-weight:600;margin-bottom:20px;"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="closeModal('exchange-done-modal')">OK</button>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="edit-exchange-modal" onclick="closeBg(event,'edit-exchange-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>交換メニューを編集</h2>
+    <input type="hidden" id="edit-ex-id">
+    <div class="form-group"><label class="form-label">メニュー名</label><input class="form-input" type="text" id="edit-ex-title"></div>
+    <div class="form-group"><label class="form-label">説明</label><input class="form-input" type="text" id="edit-ex-desc"></div>
+    <div class="form-group"><label class="form-label">必要コイン数</label><input class="form-input" type="number" id="edit-ex-cost" min="1"></div>
+    <div class="form-group"><label class="form-label">在庫数（空欄=無制限）</label><input class="form-input" type="number" id="edit-ex-stock" placeholder="無制限"></div>
+    <div class="form-group"><label class="form-label">公開状態</label>
+      <select class="form-input" id="edit-ex-active">
+        <option value="true">公開中</option>
+        <option value="false">非公開</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-danger" onclick="deleteExchangeItem()">削除</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveExchangeItem()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 請求モーダル -->
+<div class="modal-overlay" id="pay-request-modal" onclick="closeBg(event,'pay-request-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💸 請求する</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">相手に「払ってください」と通知します。相手が承認するとコインが移動します。</div>
+    <div class="form-group"><label class="form-label">請求先</label><select class="form-input" id="pr-to"></select></div>
+    <div class="form-group"><label class="form-label">コイン</label><select class="form-input" id="pr-coin"></select></div>
+    <div class="form-group"><label class="form-label">数量</label><input class="form-input" type="number" placeholder="100" id="pr-amount" min="1"></div>
+    <div class="form-group"><label class="form-label">メモ（理由など）</label><input class="form-input" type="text" placeholder="例: 4月分のおこづかい" id="pr-memo"></div>
+    <button class="btn btn-gold" style="width:100%;font-size:15px;padding:14px;" onclick="sendPayRequest()">請求を送る</button>
+  </div>
+</div>
+
+<!-- ミッション提案モーダル -->
+<div class="modal-overlay" id="propose-mission-modal" onclick="closeBg(event,'propose-mission-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💡 ミッションを提案する</h2>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">コイン発行者に「こんなミッションをやりたい」と提案します。承認されるとミッションが追加されます。</div>
+    <div class="form-group"><label class="form-label">提案先（コイン発行者）</label><select class="form-input" id="prop-to"></select></div>
+    <div class="form-group"><label class="form-label">コイン</label><select class="form-input" id="prop-coin"></select></div>
+    <div class="form-group"><label class="form-label">やりたいこと</label><input class="form-input" type="text" placeholder="例: 毎朝ジョギング30分" id="prop-title"></div>
+    <div class="form-group"><label class="form-label">詳細</label><input class="form-input" type="text" placeholder="達成の証明方法など" id="prop-desc"></div>
+    <div class="form-group"><label class="form-label">希望報酬（参考）</label><input class="form-input" type="number" placeholder="10" id="prop-reward" min="0"></div>
+    <button class="btn btn-primary" style="width:100%;font-size:15px;padding:14px;" onclick="sendProposal()">提案を送る</button>
+  </div>
+</div>
+
+<!-- 申請承認モーダル（発行者用） -->
+<div class="modal-overlay center" id="approve-app-modal" onclick="closeBg(event,'approve-app-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">✅ 申請を確認</h2>
+    <div id="approve-app-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger" onclick="judgeApp('rejected')" style="flex:1;">❌ 却下する</button>
+      <button class="btn btn-primary" onclick="judgeApp('approved')" style="flex:2;">✅ 承認・コイン付与</button>
+    </div>
+  </div>
+</div>
+
+<!-- 提案承認モーダル（発行者用） -->
+<div class="modal-overlay" id="approve-proposal-modal" onclick="closeBg(event,'approve-proposal-modal')">
+  <div class="modal"><div class="modal-handle"></div><h2>💡 提案を承認する</h2>
+    <div id="approve-proposal-detail" style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6;"></div>
+    <div class="form-group"><label class="form-label">ミッションタイトル（編集可）</label><input class="form-input" type="text" id="ap-title"></div>
+    <div class="form-group"><label class="form-label">報酬数量</label><input class="form-input" type="number" id="ap-reward" min="1"></div>
+    <div class="form-group"><label class="form-label">公開設定</label>
+      <select class="form-input" id="ap-visibility">
+        <option value="private">提案者専用（本人だけ見える）</option>
+        <option value="public">全員公開ミッションにする</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">繰り返し</label>
+      <select class="form-input" id="ap-repeat">
+        <option value="false">単発</option>
+        <option value="true">繰り返し可</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger" onclick="judgeProposal('rejected')" style="flex:1;">❌ 却下する</button>
+      <button class="btn btn-primary" onclick="judgeProposal('approved')" style="flex:2;">✅ 承認・ミッション作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 請求承認モーダル（支払い側） -->
+<div class="modal-overlay center" id="pay-confirm-modal" onclick="closeBg(event,'pay-confirm-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">💸 請求が届いています</h2>
+    <div id="pay-confirm-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.8;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger" onclick="judgePayReq('rejected')" style="flex:1;">❌ 断る</button>
+      <button class="btn btn-gold" onclick="judgePayReq('paid')" style="flex:2;">✅ 支払う</button>
+    </div>
+  </div>
+</div>
+
+<!-- オーナー完了マーク（owner承認タイプ用） -->
+<div class="modal-overlay center" id="owner-complete-modal" onclick="closeBg(event,'owner-complete-modal')">
+  <div class="modal center-modal">
+    <h2 style="text-align:center;margin-bottom:12px;">🎯 ミッション完了にする</h2>
+    <div id="owner-complete-detail" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.7;text-align:center;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" onclick="closeModal('owner-complete-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="ownerComplete()">完了にする</button>
+    </div>
+  </div>
+</div>
+
+<!-- PWAインストールモーダル -->
+<div class="modal-overlay center" id="install-modal" onclick="closeBg(event,'install-modal')">
+  <div class="modal center-modal">
+    <div style="text-align:center;margin-bottom:16px;">
+      <img src="/icon.svg" style="width:72px;height:72px;border-radius:16px;margin-bottom:10px;">
+      <h2 style="margin-bottom:6px;">CoinForgeをインストール</h2>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6;">ホーム画面に追加するとアプリのように使えます</p>
+    </div>
+
+    <!-- Android用（JSで制御） -->
+    <div id="install-android" style="display:none;">
+      <button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:10px;" onclick="doInstallAndroid()">
+        📲 ホーム画面に追加
+      </button>
+      <button class="btn btn-outline" style="width:100%;font-size:13px;" onclick="closeModal('install-modal')">あとで</button>
+    </div>
+
+    <!-- iOS用 -->
+    <div id="install-ios" style="display:none;">
+      <div style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="font-size:22px;">1</div>
+          <div style="font-size:14px;">Safariの下部にある
+            <span style="display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:13px;">
+              共有 □↑
+            </span>
+            をタップ
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">2</div>
+          <div style="font-size:14px;">
+            <span style="display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:13px;">
+              ホーム画面に追加
+            </span>
+            をタップして「追加」
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;text-align:center;">※ Safariでのみインストールできます</p>
+      <button class="btn btn-outline" style="width:100%;font-size:13px;" onclick="closeModal('install-modal')">閉じる</button>
+    </div>
+
+    <!-- すでにインストール済み -->
+    <div id="install-done" style="display:none;">
+      <p style="font-size:14px;color:var(--green);text-align:center;margin-bottom:16px;">✓ すでにインストール済みです</p>
+      <button class="btn btn-outline" style="width:100%;" onclick="closeModal('install-modal')">閉じる</button>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const SB_URL='https://amdtzbmfpnmgivacdjia.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtZHR6Ym1mcG5tZ2l2YWNkamlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzAzOTYsImV4cCI6MjA5ODA0NjM5Nn0.DJiPePGSEC5Yi8aebK6t9HQHad12FDfKfcNPlfJcOBE';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+let currentUserId=localStorage.getItem('cf_uid')||null;
+window.isAdmin=false;
+let allUsers=[],myCoins=[],myWallets={},allTxs=[],allComms=[],allMissions=[],
+    allCompletions=[],myNotifs=[],allExItems=[],allExOrders=[],
+    allMissionApps=[],allProposals=[],allPayReqs=[];
+let pinBuf='',pinPendingId=null;
+let currentCoinOp=null,pendingExchange=null;
+
+function uid(){return crypto.randomUUID?crypto.randomUUID():'_'+Date.now()+Math.random().toString(36).slice(2);}
+function timeAgo(ts){const d=Date.now()-new Date(ts).getTime(),m=Math.floor(d/60000);
+  if(m<1)return'たった今';if(m<60)return m+'分前';
+  const h=Math.floor(m/60);if(h<24)return h+'時間前';return Math.floor(h/24)+'日前';}
+function getUser(id){return allUsers.find(u=>u.id===id);}
+function me(){return getUser(currentUserId);}
+function myBal(sym){return myWallets[sym]||0;}
+function totalBal(){return Object.values(myWallets).reduce((a,b)=>a+b,0);}
+
+async function hashPin(pin){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pin+'_cf_salt'));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// PIN UI
+function showPin(userId){
+  const u=getUser(userId); pinBuf=''; pinPendingId=userId;
+  document.getElementById('pin-user-icon').textContent=u?.icon||'😊';
+  document.getElementById('pin-user-name').textContent=u?.name||'';
+  document.getElementById('pin-label').textContent='PINを入力してください';
+  document.getElementById('pin-error').textContent='';
+  updDots(); document.getElementById('pin-screen').classList.add('show');
+}
+function hidePin(){document.getElementById('pin-screen').classList.remove('show');pinBuf='';}
+function updDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('filled',i<pinBuf.length);}
+function pinKey(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(checkPin,150);}
+function pinDel(){if(pinBuf.length>0){pinBuf=pinBuf.slice(0,-1);updDots();}}
+async function checkPin(){
+  const u=getUser(pinPendingId); if(!u)return;
+  const h=await hashPin(pinBuf);
+  if(h===u.pin_hash){hidePin();await loginUser(pinPendingId);}
+  else{document.getElementById('pin-error').textContent='PINが違います';pinBuf='';updDots();}
+}
+
+// LOAD
+async function loadAll(){
+  const id=currentUserId;
+  const [u,c,w,t,co,m,mc,n,ex,eo,ma,mp,pr]=await Promise.all([
+    sb.from('users').select('*').order('created_at'),  // includes is_admin
+    sb.from('coins').select('*').eq('owner_id',id).order('created_at'),
+    sb.from('wallets').select('*').eq('user_id',id),
+    sb.from('transactions').select('*').or('from_user_id.eq.'+id+',to_user_id.eq.'+id).order('created_at',{ascending:false}).limit(60),
+    sb.from('communities').select('*').order('created_at'),
+    sb.from('missions').select('*').order('created_at'),
+    sb.from('mission_completions').select('*'),
+    sb.from('notifications').select('*').eq('user_id',id).order('created_at',{ascending:false}).limit(30),
+    sb.from('exchange_items').select('*').eq('is_active',true).order('created_at'),
+    sb.from('exchange_orders').select('*'),
+    sb.from('mission_applications').select('*'),
+    sb.from('mission_proposals').select('*').or('proposer_id.eq.'+id+',coin_owner_id.eq.'+id),
+    sb.from('payment_requests').select('*').or('requester_id.eq.'+id+',payer_id.eq.'+id),
+  ]);
+  allUsers=u.data||[]; myCoins=c.data||[];
+  myWallets={}; (w.data||[]).forEach(r=>myWallets[r.coin_symbol]=r.balance);
+  allTxs=t.data||[]; allComms=co.data||[]; allMissions=m.data||[];
+  allCompletions=mc.data||[]; myNotifs=n.data||[];
+  allExItems=ex.data||[]; allExOrders=eo.data||[];
+  allMissionApps=ma.data||[]; allProposals=mp.data||[]; allPayReqs=pr.data||[];
+  // isAdmin を常に最新のusersテーブルから更新
+  const meUser = (u.data||[]).find(x=>x.id===currentUserId);
+  if(meUser) window.isAdmin = meUser.is_admin===true;
+}
+
+let realtimeChannel=null;
+function setupRealtime(){
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+  realtimeChannel=sb.channel('cf_'+currentUserId)
+    .on('postgres_changes',{event:'*',schema:'public',table:'wallets',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderAll);})
+    .on('postgres_changes',{event:'*',schema:'public',table:'transactions',filter:'to_user_id=eq.'+currentUserId},()=>{loadAll().then(()=>{renderAll();toast('💰 新しい取引があります！');});})
+    .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:'user_id=eq.'+currentUserId},()=>{loadAll().then(renderNotifs);})
+    .subscribe();
+}
+
+// USER
+async function loadUsers(){const{data}=await sb.from('users').select('*').order('created_at');allUsers=data||[];}
+
+function renderUserSelect(){
+  const el=document.getElementById('user-cards-row');
+  if(allUsers.length===0){el.innerHTML='';openAddUserModal();return;}
+  el.innerHTML=allUsers.map(u=>`
+    <div class="user-card" onclick="tryLogin('${u.id}')">
+      <div class="user-card-icon">${u.icon||'😊'}</div>
+      <h3>${u.name}</h3><p>@${u.handle}</p>
+      ${u.pin_hash?'<div style="font-size:11px;color:var(--text3);margin-top:4px;">🔐 PIN保護</div>':''}
+    </div>`).join('');
+}
+
+async function tryLogin(id){
+  const u=getUser(id); if(!u)return;
+  if(u.pin_hash){showPin(id);}
+  else{await loginUser(id);}
+}
+
+async function loginUser(id){
+  currentUserId=id; localStorage.setItem('cf_uid',id);
+  document.getElementById('user-select-screen').style.display='none';
+  show('loading-screen'); await loadAll(); hide('loading-screen');
+  setupRealtime(); renderAll(); switchTab('home');
+}
+
+function goToUserSelect(){
+  window.isAdmin=false;
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+  currentUserId=null; localStorage.removeItem('cf_uid'); hide('loading-screen');
+  loadUsers().then(()=>{renderUserSelect();document.getElementById('user-select-screen').style.display='flex';});
+}
+
+async function addUser(){
+  const name=document.getElementById('nu-name').value.trim();
+  const icon=document.getElementById('nu-icon').value.trim()||'😊';
+  const handle=document.getElementById('nu-handle').value.trim().replace(/\s/g,'')||name.toLowerCase();
+  const pinRaw=nuPinBuf.slice(0,4);
+  if(!name){toast('名前を入力してください',true);return;}
+  let pin_hash=null;
+  if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
+  const id=uid();
+  const{error}=await sb.from('users').insert({id,name,icon,handle,pin_hash});
+  if(error){toast('エラー: '+(error.message.includes('unique')?'そのハンドル名は使われています':error.message),true);return;}
+  closeModal('add-user-modal');
+  ['nu-name','nu-icon','nu-handle','nu-pin'].forEach(x=>document.getElementById(x).value=''); nuPinBuf=''; updNuDots();
+  toast(name+' を追加しました！'); await loadUsers(); renderUserSelect();
+}
+
+async function savePin(){
+  const u=me(); if(!u)return;
+  const raw=document.getElementById('new-pin').value;
+  let pin_hash=null;
+  if(raw==='__clear__'){pin_hash=null;}
+  else{
+    const pinRaw=raw.replace(/\D/g,'').slice(0,4);
+    if(pinRaw.length===4)pin_hash=await hashPin(pinRaw);
+    else if(pinRaw.length>0&&pinRaw.length<4){toast('PINは4桁で入力してください',true);return;}
+  }
+  await sb.from('users').update({pin_hash}).eq('id',u.id);
+  closeModal('pin-setup-modal');
+  document.getElementById('new-pin').value='';
+  setupPinBuf=''; updSetupDots();
+  document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';
+  toast(pin_hash?'PINを設定しました':'PINを解除しました'); await loadUsers();
+}
+
+async function confirmDelete(){
+  const u=me(); if(!u)return;
+  if(!confirm(u.name+' のデータをすべて削除しますか？'))return;
+  await sb.from('users').delete().eq('id',u.id); goToUserSelect();
+}
+
+// COINS
+async function createCoin(){
+  const u=me(); if(!u)return;
+  const name=document.getElementById('c-name').value.trim();
+  const sym=document.getElementById('c-sym').value.trim().toUpperCase();
+  const desc=document.getElementById('c-desc').value.trim();
+  const supply=parseInt(document.getElementById('c-supply').value)||1000;
+  const uv=parseFloat(document.getElementById('c-value').value)||null;
+  const ul=document.getElementById('c-unit').value.trim()||'円';
+  if(!name||sym.length<2){toast('コイン名とシンボルを入力してください',true);return;}
+  const{error}=await sb.from('coins').insert({id:uid(),owner_id:u.id,symbol:sym,name,description:desc,max_supply:supply,unit_value:uv,unit_label:ul});
+  if(error){toast('エラー: '+error.message,true);return;}
+  await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:sym,balance:supply},{onConflict:'user_id,coin_symbol'});
+  await sb.from('transactions').insert({id:uid(),from_user_id:null,to_user_id:u.id,coin_symbol:sym,amount:supply,memo:'初期発行',type:'mint'});
+  await sb.from('notifications').insert({id:uid(),user_id:u.id,icon:'🪙',message:name+'（'+sym+'）を '+supply+' 枚発行しました'});
+  closeModal('create-coin-modal');
+  ['c-name','c-sym','c-desc','c-supply','c-value','c-unit'].forEach(x=>document.getElementById(x).value='');
+  toast(name+'（'+sym+'）を発行しました！'); await loadAll(); renderAll();
+}
+
+// COIN OPS
+function openCoinOp(sym,type){
+  currentCoinOp={sym,type};
+  const titles={mint_more:'➕ 追加発行',split:'✂ 分割',merge:'🔗 併合',burn:'🔥 焼却'};
+  const descs={
+    mint_more:'コインを追加発行します。指定した数量があなたのウォレットに加算されます。',
+    split:'全保有者のコインを分割します。比率2なら1コイン→2コインになります。',
+    merge:'全保有者のコインを併合します。比率2なら2コイン→1コインになります。',
+    burn:'指定した数量をあなたのウォレットから焼却（削除）します。'
+  };
+  document.getElementById('cop-title').textContent=titles[type];
+  document.getElementById('cop-desc').textContent=descs[type];
+  const isRatio=type==='split'||type==='merge';
+  document.getElementById('cop-ratio-g').style.display=isRatio?'block':'none';
+  document.getElementById('cop-amount-g').style.display=isRatio?'none':'block';
+  ['cop-amount','cop-ratio','cop-note'].forEach(x=>document.getElementById(x).value='');
+  showModal('coin-op-modal');
+}
+
+async function execCoinOp(){
+  const u=me(); if(!u||!currentCoinOp)return;
+  const{sym,type}=currentCoinOp;
+  const amount=parseInt(document.getElementById('cop-amount').value)||0;
+  const ratio=parseFloat(document.getElementById('cop-ratio').value)||2;
+  const note=document.getElementById('cop-note').value.trim();
+  const curBal=myBal(sym);
+  if(type==='mint_more'){
+    if(amount<1){toast('数量を入力してください',true);return;}
+    await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:sym,balance:curBal+amount},{onConflict:'user_id,coin_symbol'});
+    await sb.from('transactions').insert({id:uid(),from_user_id:null,to_user_id:u.id,coin_symbol:sym,amount,memo:'追加発行'+(note?' '+note:''),type:'mint'});
+    await sb.from('coin_operations').insert({id:uid(),operator_id:u.id,coin_symbol:sym,operation:'mint_more',amount,note});
+    toast(amount+' '+sym+' を追加発行しました！');
+  }else if(type==='burn'){
+    if(amount<1||amount>curBal){toast('数量が不正です（残高: '+curBal+'）',true);return;}
+    await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:sym,balance:curBal-amount},{onConflict:'user_id,coin_symbol'});
+    await sb.from('coin_operations').insert({id:uid(),operator_id:u.id,coin_symbol:sym,operation:'burn',amount,note});
+    toast(amount+' '+sym+' を焼却しました');
+  }else if(type==='split'||type==='merge'){
+    if(ratio<2){toast('比率は2以上を入力してください',true);return;}
+    const{data:ws}=await sb.from('wallets').select('*').eq('coin_symbol',sym);
+    for(const w of ws||[]){
+      const nb=type==='split'?Math.floor(w.balance*ratio):Math.floor(w.balance/ratio);
+      await sb.from('wallets').update({balance:nb}).eq('user_id',w.user_id).eq('coin_symbol',sym);
+    }
+    await sb.from('coin_operations').insert({id:uid(),operator_id:u.id,coin_symbol:sym,operation:type,ratio,note});
+    toast(type==='split'?sym+' を1→'+ratio+'に分割しました':sym+' を'+ratio+'→1に併合しました');
+  }
+  closeModal('coin-op-modal'); await loadAll(); renderAll();
+}
+
+function openCoinValueModal(sym){
+  const coin=myCoins.find(c=>c.symbol===sym);
+  document.getElementById('cv-value').value=coin?.unit_value||'';
+  document.getElementById('cv-unit').value=coin?.unit_label||'円';
+  currentCoinOp={sym,type:'value'}; showModal('coin-value-modal');
+}
+
+async function saveCoinValue(){
+  const u=me(); if(!u||!currentCoinOp)return;
+  const{sym}=currentCoinOp;
+  const uv=parseFloat(document.getElementById('cv-value').value)||null;
+  const ul=document.getElementById('cv-unit').value.trim()||'円';
+  await sb.from('coins').update({unit_value:uv,unit_label:ul}).eq('owner_id',u.id).eq('symbol',sym);
+  closeModal('coin-value-modal'); toast('コイン価値を設定しました'); await loadAll(); renderAll();
+}
+
+// SEND
+async function openSendModal(){
+  const u=me(); if(!u)return;
+  const others=allUsers.filter(x=>x.id!==u.id);
+  document.getElementById('s-to').innerHTML=others.length===0?'<option value="">（他のユーザーがいません）</option>':others.map(x=>`<option value="${x.id}">${x.icon} ${x.name} (@${x.handle})</option>`).join('');
+  const sendableSymbols=Object.keys(myWallets).filter(s=>myWallets[s]>0);
+  document.getElementById('s-coin').innerHTML=sendableSymbols.length===0
+    ?'<option value="">（送れるコインがありません）</option>'
+    :sendableSymbols.map(s=>{const cd=myCoins.find(c=>c.symbol===s);return `<option value="${s}">${s}${cd?' — '+cd.name:''} (残高:${myWallets[s]})</option>`;}).join('');
+  updateSendBal(); showModal('send-modal');
+}
+function updateSendBal(){const sym=document.getElementById('s-coin').value;document.getElementById('s-bal').textContent=sym?'残高: '+myBal(sym).toLocaleString()+' '+sym:'';}
+async function doSend(){
+  const u=me(); if(!u)return;
+  const toId=document.getElementById('s-to').value,sym=document.getElementById('s-coin').value;
+  const amount=parseInt(document.getElementById('s-amount').value),memo=document.getElementById('s-memo').value.trim();
+  if(!toId||!sym||!amount||amount<1){toast('入力を確認してください',true);return;}
+  const b=myBal(sym);
+  if(b<amount){toast('残高が不足しています（'+b+' '+sym+'）',true);return;}
+  const toUser=getUser(toId);
+  await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:sym,balance:b-amount},{onConflict:'user_id,coin_symbol'});
+  const{data:rw}=await sb.from('wallets').select('balance').eq('user_id',toId).eq('coin_symbol',sym).single();
+  await sb.from('wallets').upsert({id:uid(),user_id:toId,coin_symbol:sym,balance:(rw?.balance||0)+amount},{onConflict:'user_id,coin_symbol'});
+  await sb.from('transactions').insert({id:uid(),from_user_id:u.id,to_user_id:toId,coin_symbol:sym,amount,memo,type:'send'});
+  await sb.from('notifications').insert({id:uid(),user_id:toId,icon:'💰',message:u.name+' から '+amount+' '+sym+' が届きました'+(memo?'「'+memo+'」':'')});
+  closeModal('send-modal');['s-amount','s-memo'].forEach(x=>document.getElementById(x).value='');
+  toast(amount+' '+sym+' を '+(toUser?.name||'?')+' に送金しました！'); await loadAll(); renderAll();
+}
+
+// EXCHANGE
+function renderExCoinSel(){
+  document.getElementById('ex-coin').innerHTML=myCoins.length===0?'<option value="">先にコインを作成してください</option>':myCoins.map(c=>`<option value="${c.symbol}">${c.symbol} — ${c.name}</option>`).join('');
+}
+async function createExchangeItem(){
+  const u=me(); if(!u)return;
+  const title=document.getElementById('ex-title').value.trim();
+  const sym=document.getElementById('ex-coin').value;
+  const cost=parseInt(document.getElementById('ex-cost').value);
+  const stockRaw=document.getElementById('ex-stock').value.trim();
+  if(!title||!sym||!cost){toast('必須項目を入力してください',true);return;}
+  await sb.from('exchange_items').insert({id:uid(),owner_id:u.id,coin_symbol:sym,title,description:document.getElementById('ex-desc').value.trim(),coin_cost:cost,stock:stockRaw?parseInt(stockRaw):null,is_active:true});
+  closeModal('create-exchange-modal');['ex-title','ex-desc','ex-cost','ex-stock'].forEach(x=>document.getElementById(x).value='');
+  toast('交換メニューを作成しました！'); await loadAll(); renderAll();
+}
+function confirmExchange(itemId){
+  const item=allExItems.find(x=>x.id===itemId),u=me(); if(!item||!u)return;
+  const owner=getUser(item.owner_id),curBal=myBal(item.coin_symbol);
+  if(curBal<item.coin_cost){toast('コインが不足しています（残高: '+curBal+' '+item.coin_symbol+'）',true);return;}
+  pendingExchange=item;
+  document.getElementById('exchange-confirm-detail').innerHTML=
+    '<strong>'+item.title+'</strong><br><br>'+item.coin_cost+' '+item.coin_symbol+' を使用します<br>（残高: '+curBal+' → '+(curBal-item.coin_cost)+'）<br><br>コインは '+( owner?.name||'?')+' さんに戻ります';
+  showModal('exchange-confirm-modal');
+}
+async function execExchange(){
+  const u=me(); if(!u||!pendingExchange)return;
+  const item=pendingExchange,cost=item.coin_cost,sym=item.coin_symbol;
+  const curBal=myBal(sym);
+  if(curBal<cost){toast('残高不足',true);return;}
+  await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:sym,balance:curBal-cost},{onConflict:'user_id,coin_symbol'});
+  const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',item.owner_id).eq('coin_symbol',sym).single();
+  await sb.from('wallets').upsert({id:uid(),user_id:item.owner_id,coin_symbol:sym,balance:(ow?.balance||0)+cost},{onConflict:'user_id,coin_symbol'});
+  await sb.from('transactions').insert({id:uid(),from_user_id:u.id,to_user_id:item.owner_id,coin_symbol:sym,amount:cost,memo:'交換: '+item.title,type:'exchange'});
+  await sb.from('exchange_orders').insert({id:uid(),item_id:item.id,buyer_id:u.id,coin_symbol:sym,coin_amount:cost,owner_id:item.owner_id});
+  await sb.from('notifications').insert({id:uid(),user_id:item.owner_id,icon:'🛍',message:u.name+' が「'+item.title+'」を交換しました（'+cost+' '+sym+'）'});
+  if(item.stock!==null)await sb.from('exchange_items').update({stock:item.stock-1}).eq('id',item.id);
+  closeModal('exchange-confirm-modal');
+  document.getElementById('exchange-done-text').textContent='「'+item.title+'」の交換が完了しました！';
+  showModal('exchange-done-modal'); pendingExchange=null; await loadAll(); renderAll();
+}
+
+// COMMUNITY / MISSION
+async function createComm(){
+  const u=me(); if(!u)return;
+  const name=document.getElementById('cm-name').value.trim(); if(!name){toast('名前を入力してください',true);return;}
+  await sb.from('communities').insert({id:uid(),owner_id:u.id,name,description:document.getElementById('cm-desc').value.trim(),icon:document.getElementById('cm-icon').value.trim()||'🏘️'});
+  closeModal('create-comm-modal');['cm-name','cm-desc','cm-icon'].forEach(x=>document.getElementById(x).value='');
+  toast('「'+name+'」を作成しました！'); await loadAll(); renderAll();
+}
+async function createMission(){
+  const u=me(); if(!u)return;
+  const title=document.getElementById('m-title').value.trim(),sym=document.getElementById('m-coin').value;
+  const reward=parseInt(document.getElementById('m-reward').value)||10;
+  const vis=document.getElementById('m-visibility').value;
+  const targetId=vis==='private'?document.getElementById('m-target-user').value:null;
+  const repeat=document.getElementById('m-repeat').value==='true';
+  const approval=document.getElementById('m-approval').value;
+  if(!title||!sym){toast('入力を確認してください',true);return;}
+  if(vis==='private'&&!targetId){toast('対象ユーザーを選んでください',true);return;}
+  await sb.from('missions').insert({id:uid(),owner_id:u.id,title,description:document.getElementById('m-desc').value.trim(),coin_symbol:sym,reward,target_user_id:targetId,is_repeatable:repeat,approval_type:approval,is_active:true});
+  if(targetId){
+    await sb.from('notifications').insert({id:uid(),user_id:targetId,icon:'🎯',message:u.name+'から専用ミッション「'+title+'」が届きました！'});
+  }
+  closeModal('create-mission-modal');['m-title','m-desc','m-reward'].forEach(x=>document.getElementById(x).value='');
+  toast('ミッション「'+title+'」を作成しました！'); await loadAll(); renderMissionTab();
+}
+async function completeMission(mId){
+  const u=me(); if(!u)return;
+  const m=allMissions.find(x=>x.id===mId); if(!m)return;
+  const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',m.owner_id).eq('coin_symbol',m.coin_symbol).single();
+  if(!ow||ow.balance<m.reward){toast('報酬コインの残高が不足しています',true);return;}
+  await sb.from('wallets').upsert({id:uid(),user_id:m.owner_id,coin_symbol:m.coin_symbol,balance:ow.balance-m.reward},{onConflict:'user_id,coin_symbol'});
+  const{data:uw}=await sb.from('wallets').select('balance').eq('user_id',u.id).eq('coin_symbol',m.coin_symbol).single();
+  await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:m.coin_symbol,balance:(uw?.balance||0)+m.reward},{onConflict:'user_id,coin_symbol'});
+  await sb.from('mission_completions').insert({id:uid(),mission_id:mId,user_id:u.id});
+  await sb.from('transactions').insert({id:uid(),from_user_id:m.owner_id,to_user_id:u.id,coin_symbol:m.coin_symbol,amount:m.reward,memo:'ミッション達成: '+m.title,type:'mission'});
+  await sb.from('notifications').insert({id:uid(),user_id:u.id,icon:'🎯',message:'ミッション「'+m.title+'」達成！+'+m.reward+' '+m.coin_symbol});
+  document.getElementById('mission-done-text').textContent='+'+m.reward+' '+m.coin_symbol+' 獲得！';
+  showModal('mission-done-modal'); await loadAll(); renderAll();
+}
+
+// RENDER
+// ── 手動更新（ボタン & 下スワイプ／プルトゥリフレッシュ） ──
+let isRefreshing = false;
+async function manualRefresh(showToastMsg=true){
+  if(isRefreshing) return;
+  isRefreshing = true;
+  const icon = document.getElementById('refresh-icon');
+  if(icon) icon.style.transform = 'rotate(360deg)';
+  try{
+    await loadAll();
+    renderAll();
+    renderMissionTab();
+    if(showToastMsg) toast('更新しました');
+  } finally {
+    setTimeout(()=>{ if(icon) icon.style.transform = 'rotate(0deg)'; isRefreshing = false; }, 400);
+  }
+}
+
+// プルトゥリフレッシュ（ホーム画面を一番上までスクロールした状態で下にスワイプ）
+(function setupPullToRefresh(){
+  const home = document.getElementById('screen-home');
+  const indicator = document.getElementById('pull-refresh-indicator');
+  const pIcon = document.getElementById('pull-refresh-icon');
+  const pText = document.getElementById('pull-refresh-text');
+  if(!home || !indicator) return;
+  let startY = 0, pulling = false, triggered = false;
+  const THRESHOLD = 70;
+
+  home.addEventListener('touchstart', (e)=>{
+    if(home.scrollTop <= 0){ startY = e.touches[0].clientY; pulling = true; triggered = false; }
+    else pulling = false;
+  }, {passive:true});
+
+  home.addEventListener('touchmove', (e)=>{
+    if(!pulling) return;
+    const diff = e.touches[0].clientY - startY;
+    if(diff > 0 && home.scrollTop <= 0){
+      const h = Math.min(diff * 0.5, 90);
+      indicator.style.height = h + 'px';
+      if(h >= THRESHOLD){
+        triggered = true;
+        pText.textContent = '離して更新';
+        pIcon.style.transform = 'rotate(180deg)';
+      } else {
+        triggered = false;
+        pText.textContent = '引っ張って更新';
+        pIcon.style.transform = 'rotate(0deg)';
+      }
+    }
+  }, {passive:true});
+
+  home.addEventListener('touchend', async ()=>{
+    if(!pulling) return;
+    pulling = false;
+    if(triggered){
+      pText.textContent = '更新中...';
+      await manualRefresh(false);
+      toast('更新しました');
+    }
+    indicator.style.height = '0px';
+    pText.textContent = '引っ張って更新';
+    pIcon.style.transform = 'rotate(0deg)';
+  }, {passive:true});
+})();
+
+function renderAll(){
+  const u=me(); if(!u)return;
+  document.getElementById('hdr-icon').textContent=u.icon||'😊';
+  document.getElementById('hdr-name').textContent=u.name;
+  // マーケットナビ：コイン発行者のみ表示
+  const navMkt = document.getElementById('nav-market');
+  navMkt.style.display = myCoins.length > 0 ? 'flex' : 'none';
+  navMkt.style.flexDirection = 'column';
+  renderHome(u); renderWallet(u); renderProfile(u); renderExShop(u);
+  // コミュニティ画面が表示中のときだけミッションタブを更新
+  if(document.getElementById('screen-community').classList.contains('active')){
+    renderCommunity(u);
+  }
+}
+function renderHome(u){
+  document.getElementById('home-label').textContent=u.name+' の残高';
+  document.getElementById('total-balance').textContent=totalBal().toLocaleString();
+  document.getElementById('home-summary').textContent=myCoins.length>0?myCoins.map(c=>c.symbol+' '+myBal(c.symbol).toLocaleString()).join(' / '):'コインなし';
+  const vc=myCoins.filter(c=>c.unit_value);
+  if(vc.length>0){
+    document.getElementById('home-value-est').style.display='block';
+    document.getElementById('home-value-num').textContent=vc.map(c=>''+(myBal(c.symbol)*c.unit_value).toLocaleString()+c.unit_label).join(' + ');
+  }else document.getElementById('home-value-est').style.display='none';
+  const cl=document.getElementById('home-coins'),ce=document.getElementById('home-coins-empty');
+  if(myCoins.length===0){cl.innerHTML='';ce.style.display='block';}
+  else{ce.style.display='none';
+    cl.innerHTML=myCoins.slice(0,3).map(c=>`<div class="list-item">
+      <div class="coin-badge sm">${c.symbol.slice(0,3)}</div>
+      <div class="list-item-info"><h3>${c.name}</h3><p>${c.symbol}${c.unit_value?' · 1'+c.symbol+'≈'+c.unit_value+c.unit_label:''}</p></div>
+      <div style="text-align:right;"><div class="amount">${myBal(c.symbol).toLocaleString()}</div>
+      ${c.unit_value?'<div style="font-size:11px;color:var(--green);">≈'+(myBal(c.symbol)*c.unit_value).toLocaleString()+c.unit_label+'</div>':''}</div></div>`).join('');}
+  // アクション必要な通知をホームに表示
+  renderHomeActions(u);
+  const fl=document.getElementById('home-feed'),fe=document.getElementById('home-feed-empty');
+  if(allTxs.length===0){fl.innerHTML='';fe.style.display='block';}
+  else{fe.style.display='none';
+    fl.innerHTML=allTxs.slice(0,6).map(tx=>{
+      const isIn=tx.to_user_id===u.id,other=isIn?getUser(tx.from_user_id):getUser(tx.to_user_id);
+      let txt='';
+      if(tx.type==='mint')txt='<strong>'+tx.amount+' '+tx.coin_symbol+'</strong> を発行しました';
+      else if(tx.type==='mission')txt='ミッション達成！<strong>+'+tx.amount+' '+tx.coin_symbol+'</strong>';
+      else if(tx.type==='exchange')txt=isIn?'<strong>'+(other?.name||'?')+'</strong> が交換 +<strong>'+tx.amount+' '+tx.coin_symbol+'</strong>':'「'+(tx.memo?.replace('交換: ','')||'交換')+'」で <strong>'+tx.amount+' '+tx.coin_symbol+'</strong> 使用';
+      else if(isIn)txt='<strong>'+(other?.name||'?')+'</strong> から <strong>'+tx.amount+' '+tx.coin_symbol+'</strong> 受取'+(tx.memo?'「'+tx.memo+'」':'');
+      else txt='<strong>'+(other?.name||'?')+'</strong> へ <strong>'+tx.amount+' '+tx.coin_symbol+'</strong> 送金'+(tx.memo?'「'+tx.memo+'」':'');
+      return '<div class="feed-item"><div class="feed-dot"></div><div><div class="feed-text">'+txt+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';
+    }).join('');}
+}
+function renderWallet(u){
+  document.getElementById('w-total').textContent=totalBal().toLocaleString();
+  document.getElementById('w-txc').textContent=allTxs.length;
+  const wc=document.getElementById('w-coins'),we=document.getElementById('w-coins-empty');
+  if(myCoins.length===0){wc.innerHTML='';we.style.display='block';}
+  else{we.style.display='none';
+    wc.innerHTML=myCoins.map(c=>`<div class="list-item"><div class="coin-badge">${c.symbol.slice(0,3)}</div>
+      <div class="list-item-info"><h3>${c.name}</h3><p>${c.symbol}${c.description?' · '+c.description:''}</p>
+      ${c.unit_value?'<div class="value-badge">1'+c.symbol+'≈'+c.unit_value+c.unit_label+'</div>':''}</div>
+      <div style="text-align:right;"><div class="amount" style="font-size:18px;">${myBal(c.symbol).toLocaleString()}</div>
+      ${c.unit_value?'<div style="font-size:12px;color:var(--green);">≈'+(myBal(c.symbol)*c.unit_value).toLocaleString()+c.unit_label+'</div>':''}</div></div>`).join('');}
+  const tx=document.getElementById('w-tx'),te=document.getElementById('w-tx-empty');
+  if(allTxs.length===0){tx.innerHTML='';te.style.display='block';}
+  else{te.style.display='none';
+    tx.innerHTML=allTxs.map(t=>{
+      const isIn=t.to_user_id===u.id;
+      const icon=t.type==='mint'?'🪙':t.type==='mission'?'🎯':t.type==='exchange'?(isIn?'🛍':'🛒'):isIn?'↓':'↑';
+      const other=isIn?getUser(t.from_user_id):getUser(t.to_user_id);
+      const label=t.type==='mint'?'発行':t.type==='mission'?'ミッション':other?.name||'?';
+      return '<div class="list-item"><div class="avatar" style="background:'+(isIn?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')+';color:'+(isIn?'var(--green)':'var(--red)')+';font-size:16px;">'+icon+'</div><div class="list-item-info"><h3>'+label+'</h3><p>'+timeAgo(t.created_at)+(t.memo?' · '+t.memo:'')+'</p></div><div style="text-align:right;"><div class="amount '+(isIn?'pos':'neg')+'">'+(isIn?'+':'-')+t.amount+' '+t.coin_symbol+'</div></div></div>';
+    }).join('');}
+}
+function renderCommunity(u){
+  const cl=document.getElementById('comm-list'),ce=document.getElementById('comm-empty');
+  if(allComms.length===0){cl.innerHTML='';ce.style.display='block';}
+  else{ce.style.display='none';cl.innerHTML=allComms.map(c=>'<div class="mkt-row"><div class="avatar" style="font-size:20px;">'+c.icon+'</div><div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;">'+c.name+'</div><div style="font-size:12px;color:var(--text2);margin-top:2px;">'+(c.description||'')+' · '+(getUser(c.owner_id)?.name||'?')+'</div></div></div>').join('');}
+  // ミッションはrenderMissionTab()で描画
+  renderMissionTab();
+}
+function renderProfile(u){
+  // コイン発行者かどうかでタブを表示切替
+  const isCoinOwner = myCoins.length > 0;
+  // 何かしらコインを保有しているか（発行者でなくても交換所は使える）
+  const hasAnyCoin = Object.keys(myWallets).some(s=>myWallets[s]>0);
+  // 管理者タブ
+  const adminBtn = document.getElementById('ptab-btn-admin');
+  if(adminBtn) adminBtn.style.display = window.isAdmin ? '' : 'none';
+  document.getElementById('ptab-btn-coin').style.display = isCoinOwner ? '' : 'none';
+  document.getElementById('ptab-btn-shop').style.display = (isCoinOwner || hasAnyCoin) ? '' : 'none';
+  document.getElementById('prof-avatar').textContent=u.icon||'😊';
+  document.getElementById('prof-name').textContent=u.name;
+  document.getElementById('prof-handle').textContent='@'+u.handle;
+  document.getElementById('prof-coins').textContent=myCoins.length;
+  document.getElementById('prof-txc').textContent=allTxs.length;
+  const mc=allCompletions.filter(c=>c.user_id===u.id).length;
+  document.getElementById('prof-mc').textContent=mc;
+  const pct=allMissions.length>0?Math.round(mc/allMissions.length*100):0;
+  document.getElementById('prof-rate').textContent=pct+'%';
+  document.getElementById('prof-bar').style.width=pct+'%';
+  // coin mgmt
+  const cml=document.getElementById('coin-mgmt-list'),cme=document.getElementById('coin-mgmt-empty');
+  if(myCoins.length===0){cml.innerHTML='';cme.style.display='block';}
+  else{cme.style.display='none';
+    cml.innerHTML=myCoins.map(c=>'<div class="coin-mgmt-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div class="coin-badge sm">'+c.symbol.slice(0,3)+'</div><div style="flex:1;"><div style="font-size:15px;font-weight:700;">'+c.name+' <span style="font-size:13px;color:var(--text2);">('+c.symbol+')</span></div><div style="font-size:12px;color:var(--text2);">残高: '+myBal(c.symbol).toLocaleString()+'</div>'+(c.unit_value?'<div class="value-badge">1'+c.symbol+'≈'+c.unit_value+c.unit_label+'</div>':'')+'</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><button class="btn btn-sm btn-primary" onclick="openCoinOp(\''+c.symbol+'\',\'mint_more\')">➕ 追加発行</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'burn\')">🔥 焼却</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'split\')">✂ 分割</button><button class="btn btn-sm btn-outline" onclick="openCoinOp(\''+c.symbol+'\',\'merge\')">🔗 併合</button></div><button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;" onclick="openCoinValueModal(\''+c.symbol+'\')">💱 価値目安を設定</button></div>').join('');}
+}
+function renderExShop(u){
+  // コイン発行者でなければ「自分の交換メニュー」セクション自体を非表示
+  const myShopSection=document.getElementById('exchange-my-section');
+  if(myShopSection) myShopSection.style.display = myCoins.length>0 ? '' : 'none';
+  const myItems=allExItems.filter(x=>x.owner_id===u.id);
+  const ml=document.getElementById('exchange-my'),me3=document.getElementById('exchange-my-empty');
+  if(myItems.length===0){ml.innerHTML='';me3.style.display='block';}
+  else{me3.style.display='none';ml.innerHTML=myItems.map(item=>{const orders=allExOrders.filter(o=>o.item_id===item.id).length;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+(item.is_active?'':' <span style="font-size:11px;color:var(--text3);">非公開</span>')+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text3);">利用回数: '+orders+'回'+(item.stock!==null?' · 残在庫: '+item.stock:'')+'</p></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:14px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div><button class="btn btn-sm btn-outline" style="margin-top:6px;" onclick="openEditExchange(\''+item.id+'\')" >✏ 編集</button></div></div>';}).join('');}
+  const allItems=allExItems.filter(x=>x.owner_id!==u.id);
+  const al=document.getElementById('exchange-all'),ae=document.getElementById('exchange-all-empty');
+  if(allItems.length===0){al.innerHTML='';ae.style.display='block';}
+  else{ae.style.display='none';al.innerHTML=allItems.map(item=>{const owner=getUser(item.owner_id),canUse=myBal(item.coin_symbol)>=item.coin_cost;return '<div class="shop-card"><div class="shop-icon">🛍</div><div class="shop-info"><h3>'+item.title+'</h3><p>'+(item.description||'')+'</p><p style="margin-top:4px;color:var(--text2);">'+(owner?.icon||'')+' '+(owner?.name||'?')+' のメニュー</p>'+(item.stock!==null?'<p style="font-size:11px;color:var(--text3);">残在庫: '+item.stock+'</p>':'')+'</div><div style="text-align:right;flex-shrink:0;"><div style="font-size:14px;font-weight:700;color:var(--gold-l);">'+item.coin_cost+' '+item.coin_symbol+'</div><button class="btn btn-sm '+(canUse?'btn-gold':'btn-outline')+'" style="margin-top:6px;" '+(canUse?'onclick="confirmExchange(\''+item.id+'\')"':'disabled style="opacity:.4;"')+'>'+(canUse?'使う':'残高不足')+'</button></div></div>';}).join('');}
+}
+let selectedMktSymbol = null;
+
+async function renderMarketTab(){
+  const u = me(); if(!u) return;
+  if(myCoins.length === 0) return;
+
+  // コイン選択タブを生成
+  const tabsEl = document.getElementById('mkt-coin-tabs');
+  if(!selectedMktSymbol || !myCoins.find(c=>c.symbol===selectedMktSymbol)){
+    selectedMktSymbol = myCoins[0].symbol;
+  }
+  tabsEl.innerHTML = myCoins.map(c=>`
+    <button onclick="selectMktCoin('${c.symbol}')"
+      style="padding:7px 14px;border-radius:20px;border:1px solid ${c.symbol===selectedMktSymbol?'var(--purple)':'var(--border)'};
+      background:${c.symbol===selectedMktSymbol?'rgba(124,58,237,.2)':'var(--card)'};
+      color:${c.symbol===selectedMktSymbol?'var(--purple-l)':'var(--text2)'};
+      font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+      ${c.symbol}
+    </button>`).join('');
+
+  await renderMktForCoin(selectedMktSymbol);
+}
+
+function selectMktCoin(sym){
+  selectedMktSymbol = sym;
+  renderMarketTab();
+}
+
+async function renderMktForCoin(sym){
+  // 保有者一覧（全ウォレット from Supabase）
+  const {data:wallets} = await sb.from('wallets')
+    .select('*, users(name,icon,handle)')
+    .eq('coin_symbol', sym)
+    .gt('balance', 0)
+    .order('balance', {ascending:false});
+
+  const hl = document.getElementById('mkt-holders');
+  const he = document.getElementById('mkt-holders-empty');
+  if(!wallets||wallets.length===0){hl.innerHTML='';he.style.display='block';}
+  else{
+    he.style.display='none';
+    // 合計
+    const total = wallets.reduce((s,w)=>s+w.balance,0);
+    hl.innerHTML = `
+      <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:var(--text2);">合計流通量</span>
+        <span style="font-size:16px;font-weight:700;color:var(--gold-l);">${total.toLocaleString()} ${sym}</span>
+      </div>` +
+      wallets.map((w,i)=>{
+        const pct = total > 0 ? Math.round(w.balance/total*100) : 0;
+        return `<div class="list-item" style="margin-bottom:6px;">
+          <div style="width:24px;font-size:14px;font-weight:700;color:${i===0?'var(--gold)':i===1?'#94A3B8':i===2?'#B45309':'var(--text3)'};">${i+1}</div>
+          <div class="avatar" style="font-size:18px;">${w.users?.icon||'😊'}</div>
+          <div class="list-item-info">
+            <h3>${w.users?.name||'?'}</h3>
+            <div style="margin-top:4px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;"></div>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:15px;font-weight:700;color:var(--gold-l);">${w.balance.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text3);">${pct}%</div>
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  // 取引履歴（このコインのみ）
+  const {data:txs} = await sb.from('transactions')
+    .select('*')
+    .eq('coin_symbol', sym)
+    .order('created_at',{ascending:false})
+    .limit(50);
+
+  const tl=document.getElementById('mkt-tx'),te=document.getElementById('mkt-tx-empty');
+  if(!txs||txs.length===0){tl.innerHTML='';te.style.display='block';}
+  else{
+    te.style.display='none';
+    tl.innerHTML=txs.map(tx=>{
+      const from=getUser(tx.from_user_id),to=getUser(tx.to_user_id);
+      const icon=tx.type==='mint'?'🪙':tx.type==='mission'?'🎯':tx.type==='exchange'?'🛍':'↔';
+      let lbl='';
+      if(tx.type==='mint') lbl=(to?.name||'?')+' が '+tx.amount+' '+tx.coin_symbol+' を発行';
+      else if(tx.type==='mission') lbl=(to?.name||'?')+' がミッション達成 +'+tx.amount+' '+tx.coin_symbol;
+      else if(tx.type==='exchange') lbl=(from?.name||'?')+' が交換 '+tx.amount+' '+tx.coin_symbol+'→'+(to?.name||'?');
+      else lbl=(from?.name||'?')+' → '+(to?.name||'?')+'：'+tx.amount+' '+tx.coin_symbol+(tx.memo?' 「'+tx.memo+'」':'');
+      return '<div class="feed-item"><div style="font-size:18px;flex-shrink:0;">'+icon+'</div><div><div class="feed-text">'+lbl+'</div><div class="feed-time">'+timeAgo(tx.created_at)+'</div></div></div>';
+    }).join('');
+  }
+}
+function renderNotifs(){ renderNotifsWithActions(); }
+function renderSettingsUsers(){
+  document.getElementById('settings-users').innerHTML=allUsers.map(u=>'<div class="list-item"><div class="avatar" style="font-size:20px;">'+u.icon+'</div><div class="list-item-info"><h3>'+u.name+'</h3><p>@'+u.handle+(u.pin_hash?' 🔐':'')+'</p></div>'+(u.id===currentUserId?'<span style="font-size:12px;background:rgba(124,58,237,.2);color:var(--purple-l);border:1px solid var(--purple);padding:3px 10px;border-radius:20px;">使用中</span>':'<button class="btn btn-sm btn-outline" onclick="closeModal(\'settings-modal\');tryLogin(\''+u.id+'\')">切替</button>')+'</div>').join('');
+}
+
+// UI
+function switchTab(tab){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+tab).classList.add('active');
+  document.getElementById('nav-'+tab).classList.add('active');
+  if(tab==='market') renderMarketTab();
+  if(tab==='community'){ const u=me(); if(u) renderCommunity(u); }
+}
+function switchPTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('ptab-'+name).classList.add('active');
+  if(name==='shop')renderExCoinSel();
+  if(name==='admin')loadAdminUsers();
+}
+function show(id){document.getElementById(id).style.display='flex';}
+function hide(id){document.getElementById(id).style.display='none';}
+function showModal(id){
+  if(id==='notif-modal'){renderNotifsWithActions();markNotifsRead();}
+  if(id==='settings-modal')renderSettingsProfile();
+  if(id==='create-mission-modal'){
+    renderMissionCoinSel();
+    // 対象ユーザー選択肢を更新
+    const others=allUsers.filter(x=>x.id!==currentUserId);
+    document.getElementById('m-target-user').innerHTML=others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  }
+  if(id==='create-exchange-modal')renderExCoinSel();
+  if(id==='propose-mission-modal'){initProposeMissionModal();return;}
+  if(id==='pay-request-modal')initPayRequestModal();
+  document.getElementById(id).classList.add('open');
+}
+function openAddUserModal(){document.getElementById('add-user-modal').classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeBg(e,id){if(e.target.classList.contains('modal-overlay'))closeModal(id);}
+function renderMissionCoinSel(){
+  // 全ユーザーのコインを選択肢に（シンボルで重複除去）
+  const allCoinsMap={};
+  allUsers.forEach(u=>{
+    (allMissions.filter(m=>m.owner_id===u.id)||[]).forEach(m=>{
+      if(!allCoinsMap[m.coin_symbol]) allCoinsMap[m.coin_symbol]=m.coin_symbol;
+    });
+  });
+  // 自分のコインも必ず含む
+  myCoins.forEach(c=>{ allCoinsMap[c.symbol]=c.symbol+' — '+c.name; });
+  // 全walletのシンボルも含む
+  const extraSymbols=[...new Set(allMissions.map(m=>m.coin_symbol))];
+  extraSymbols.forEach(s=>{ if(!allCoinsMap[s]) allCoinsMap[s]=s; });
+  const opts=Object.entries(allCoinsMap);
+  document.getElementById('m-coin').innerHTML=opts.length===0
+    ?'<option value="">コインがありません</option>'
+    :opts.map(([sym,label])=>`<option value="${sym}">${label}</option>`).join('');
+}
+function toast(msg,isErr=false){
+  const t=document.getElementById('toast');t.textContent=msg;
+  t.style.borderColor=isErr?'var(--red)':'var(--green)';t.style.color=isErr?'var(--red)':'var(--green)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+
+function openEditExchange(itemId){
+  const item=allExItems.find(x=>x.id===itemId); if(!item)return;
+  document.getElementById('edit-ex-id').value=item.id;
+  document.getElementById('edit-ex-title').value=item.title;
+  document.getElementById('edit-ex-desc').value=item.description||'';
+  document.getElementById('edit-ex-cost').value=item.coin_cost;
+  document.getElementById('edit-ex-stock').value=item.stock!==null?item.stock:'';
+  document.getElementById('edit-ex-active').value=item.is_active?'true':'false';
+  showModal('edit-exchange-modal');
+}
+async function saveExchangeItem(){
+  const id=document.getElementById('edit-ex-id').value;
+  const title=document.getElementById('edit-ex-title').value.trim();
+  const desc=document.getElementById('edit-ex-desc').value.trim();
+  const cost=parseInt(document.getElementById('edit-ex-cost').value);
+  const stockRaw=document.getElementById('edit-ex-stock').value.trim();
+  const isActive=document.getElementById('edit-ex-active').value==='true';
+  if(!title||!cost){toast('入力を確認してください',true);return;}
+  await sb.from('exchange_items').update({
+    title,description:desc,coin_cost:cost,
+    stock:stockRaw?parseInt(stockRaw):null,
+    is_active:isActive
+  }).eq('id',id);
+  closeModal('edit-exchange-modal');
+  toast('交換メニューを更新しました！'); await loadAll(); renderAll();
+}
+async function deleteExchangeItem(){
+  const id=document.getElementById('edit-ex-id').value;
+  if(!confirm('この交換メニューを削除しますか？'))return;
+  await sb.from('exchange_items').delete().eq('id',id);
+  closeModal('edit-exchange-modal');
+  toast('交換メニューを削除しました'); await loadAll(); renderAll();
+}
+
+// セットアップPINキーパッド
+let setupPinBuf='';
+function setupPinKey(d){
+  if(setupPinBuf.length>=4)return;
+  setupPinBuf+=d; updSetupDots();
+  if(setupPinBuf.length===4){
+    document.getElementById('new-pin').value=setupPinBuf;
+    document.getElementById('setup-pin-label').textContent='✓ PIN入力完了（保存ボタンを押してください）';
+  }
+}
+function setupPinDel(){if(setupPinBuf.length>0){setupPinBuf=setupPinBuf.slice(0,-1);updSetupDots();document.getElementById('new-pin').value='';document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';}}
+function setupPinClear(){setupPinBuf='';updSetupDots();document.getElementById('new-pin').value='';document.getElementById('setup-pin-label').textContent='新しいPINを入力してください';}
+function updSetupDots(){for(let i=0;i<4;i++){const d=document.getElementById('spd'+i);if(d){d.style.background=i<setupPinBuf.length?'var(--purple)':'';d.style.borderColor=i<setupPinBuf.length?'var(--purple)':'var(--border)';}}}
+function clearPin(){if(!confirm('PINを解除しますか？'))return;document.getElementById('new-pin').value='__clear__';savePin();}
+
+// 新規ユーザーPINキーパッド
+let nuPinBuf='';
+function nuPinKey(d){
+  if(nuPinBuf.length>=4)return;
+  nuPinBuf+=d; updNuDots();
+  if(nuPinBuf.length===4)document.getElementById('nu-pin').value=nuPinBuf;
+}
+function nuPinDel(){if(nuPinBuf.length>0){nuPinBuf=nuPinBuf.slice(0,-1);updNuDots();document.getElementById('nu-pin').value='';}}
+function nuPinClear(){nuPinBuf='';updNuDots();document.getElementById('nu-pin').value='';}
+function updNuDots(){for(let i=0;i<4;i++){const d=document.getElementById('nupd'+i);if(d){d.style.background=i<nuPinBuf.length?'var(--purple)':'';d.style.borderColor=i<nuPinBuf.length?'var(--purple)':'var(--border)';}}}
+
+// ── ミッションタブ切替 ──
+let currentMTab = 'public';
+function switchMTab(tab, btn){
+  currentMTab = tab;
+  document.querySelectorAll('[id^="mtab-"]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMissionTab();
+}
+
+// ── ミッション一覧レンダリング（タブ対応） ──
+function renderMissionTab(){
+  const u = me(); if(!u) return;
+  const el = document.getElementById('mission-list');
+  const em = document.getElementById('mission-empty');
+
+  if(currentMTab === 'public'){
+    // 全員公開ミッション
+    const list = allMissions.filter(m => !m.target_user_id && m.is_active);
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='公開ミッションがありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(m => renderMissionCard(m, u)).join('');
+
+  } else if(currentMTab === 'private'){
+    // 自分宛て専用ミッション OR 自分が作った専用ミッション
+    const list = allMissions.filter(m => m.target_user_id && m.is_active &&
+      (m.target_user_id === u.id || m.owner_id === u.id));
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='専用ミッションがありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(m => {
+      const target = getUser(m.target_user_id);
+      const isTarget = m.target_user_id === u.id;
+      const isOwner = m.owner_id === u.id;
+      return renderMissionCard(m, u, target, isOwner);
+    }).join('');
+
+  } else if(currentMTab === 'proposal'){
+    // 自分が送った提案 OR 自分宛の提案
+    const list = allProposals.filter(p => (p.proposer_id===u.id || p.coin_owner_id===u.id) && p.status==='pending');
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='提案がありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(p => {
+      const proposer = getUser(p.proposer_id);
+      const owner = getUser(p.coin_owner_id);
+      const isOwner = p.coin_owner_id === u.id;
+      const statusLabel = {pending:'審査中',approved_private:'承認済（専用）',approved_public:'承認済（公開）',rejected:'却下'}[p.status]||p.status;
+      const statusColor = p.status==='pending'?'var(--gold)':p.status.startsWith('approved')?'var(--green)':'var(--red)';
+      return `<div class="mission-card">
+        <div class="mission-reward"><div class="rew-n">${p.desired_reward}</div><div class="rew-s">${p.coin_symbol}</div></div>
+        <div class="mission-info">
+          <h3>${p.title}</h3>
+          <p>${p.description||''}</p>
+          <p style="margin-top:4px;">${isOwner?'💡 '+proposer?.name+'からの提案':'→ '+owner?.name+' へ提案'}</p>
+          <span style="font-size:11px;color:${statusColor};font-weight:600;">${statusLabel}</span>
+        </div>
+        ${isOwner && p.status==='pending' ? `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="openApproveProposal('${p.id}')">承認</button>` : ''}
+      </div>`;
+    }).join('');
+
+  } else if(currentMTab === 'apply'){
+    // 申請一覧：自分の申請 OR 自分のミッションへの申請
+    const myMissionIds = allMissions.filter(m=>m.owner_id===u.id).map(m=>m.id);
+    const list = allMissionApps.filter(a => (a.applicant_id===u.id || myMissionIds.includes(a.mission_id)) && a.status==='pending');
+    if(list.length===0){el.innerHTML='';em.style.display='block';em.textContent='申請がありません';return;}
+    em.style.display='none';
+    el.innerHTML = list.map(a => {
+      const mission = allMissions.find(m=>m.id===a.mission_id);
+      const applicant = getUser(a.applicant_id);
+      const isOwner = myMissionIds.includes(a.mission_id);
+      const statusLabel = {pending:'審査中',approved:'承認済',rejected:'却下'}[a.status]||a.status;
+      const statusColor = a.status==='pending'?'var(--gold)':a.status==='approved'?'var(--green)':'var(--red)';
+      return `<div class="mission-card">
+        <div class="mission-reward"><div class="rew-n">${mission?.reward||'?'}</div><div class="rew-s">${mission?.coin_symbol||''}</div></div>
+        <div class="mission-info">
+          <h3>${mission?.title||'不明なミッション'}</h3>
+          <p>${a.note||''}</p>
+          <p style="margin-top:3px;font-size:12px;">${isOwner?'📩 '+applicant?.name+'が申請':'あなたの申請'}</p>
+          <span style="font-size:11px;color:${statusColor};font-weight:600;">${statusLabel}</span>
+        </div>
+        ${isOwner && a.status==='pending' ? `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="openApproveApp('${a.id}')">承認</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderMissionCard(m, u, target, isOwner){
+  const done = !m.is_repeatable && allCompletions.some(c=>c.mission_id===m.id&&c.user_id===u.id);
+  const owner = getUser(m.owner_id);
+  const isMyMission = m.owner_id === u.id;
+  const isTarget = !m.target_user_id || m.target_user_id === u.id;
+
+  // 申請済みかチェック（繰り返し可なミッションは審査中でも何度でも申請できるようにする）
+  const myApps = allMissionApps.filter(a=>a.mission_id===m.id&&a.applicant_id===u.id);
+  const myPendingApp = myApps.find(a=>a.status==='pending');
+  const myApprovedApp = myApps.find(a=>a.status==='approved');
+  const applied = !m.is_repeatable && !!myPendingApp;
+  const appApproved = !m.is_repeatable && !!myApprovedApp;
+
+  let actionBtn = '';
+  if(isMyMission && m.approval_type==='owner'){
+    // オーナーが直接完了マークするタイプ
+    actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;font-size:11px;" onclick="openOwnerComplete('${m.id}')">✓ 完了にする</button>`;
+  } else if(!isMyMission && isTarget && !done){
+    if(m.approval_type==='self'){
+      // 申請タイプ
+      if(appApproved){
+        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>✓ 承認済</button>`;
+      } else if(applied){
+        actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>申請中...</button>`;
+      } else if(m.is_repeatable && myPendingApp){
+        // 繰り返し可：審査中でも続けて申請できる（件数を表示）
+        const pendingCount = myApps.filter(a=>a.status==='pending').length;
+        actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する<span style="opacity:.75;font-size:11px;"> (審査中${pendingCount}件)</span></button>`;
+      } else {
+        actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する</button>`;
+      }
+    } else {
+      // owner完了タイプは利用者側は待つだけ
+      actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>承認待ち</button>`;
+    }
+  } else if(done){
+    actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>✓ 達成済</button>`;
+  }
+
+  const targetLabel = m.target_user_id ? ` · 🔒 ${target?.name||getUser(m.target_user_id)?.name||'専用'}専用` : '';
+  const repeatLabel = m.is_repeatable ? ' · 🔄 繰返し' : '';
+
+  // 管理者または作成者は削除可能
+  const canDelete = (window.isAdmin===true) || isMyMission;
+  const safeTitle = (m.title||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+
+  return `<div class="mission-card" style="margin-bottom:8px;">
+    <div class="mission-reward"><div class="rew-n">${m.reward}</div><div class="rew-s">${m.coin_symbol}</div></div>
+    <div class="mission-info">
+      <h3>${m.title}</h3>
+      <p>${m.description||''} · ${owner?.name||'?'}${targetLabel}${repeatLabel}</p>
+      ${canDelete?`<button onclick="confirmDeleteMission('${m.id}','${safeTitle}')" style="margin-top:6px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:12px;padding:4px 10px;cursor:pointer;display:inline-block;">🗑 削除</button>`:''}
+    </div>
+    ${actionBtn}
+  </div>`;
+}
+
+// ── ミッション申請 ──
+async function applyMission(mId){
+  const u=me(); if(!u) return;
+  const note = prompt('申請コメント（任意）') || '';
+  await sb.from('mission_applications').insert({id:uid(),mission_id:mId,applicant_id:u.id,note,status:'pending'});
+  const m = allMissions.find(x=>x.id===mId);
+  await sb.from('notifications').insert({id:uid(),user_id:m.owner_id,icon:'📩',message:u.name+'が「'+m.title+'」に申請しました'});
+  toast('申請を送りました！'); await loadAll(); renderAll(); renderMissionTab();
+}
+
+// ── 申請承認（発行者） ──
+let pendingAppId = null;
+function openApproveApp(appId){
+  pendingAppId = appId;
+  const a = allMissionApps.find(x=>x.id===appId);
+  const m = allMissions.find(x=>x.id===a?.mission_id);
+  const applicant = getUser(a?.applicant_id);
+  document.getElementById('approve-app-detail').innerHTML =
+    `<strong>${applicant?.name||'?'}</strong> が<br>「${m?.title||'?'}」に申請<br><br>`+
+    `報酬: <strong>${m?.reward} ${m?.coin_symbol}</strong><br>`+
+    (a?.note?`コメント: 「${a.note}」`:'');
+  showModal('approve-app-modal');
+}
+
+async function judgeApp(verdict){
+  const u=me(); if(!u||!pendingAppId) return;
+  const a = allMissionApps.find(x=>x.id===pendingAppId);
+  const m = allMissions.find(x=>x.id===a?.mission_id);
+  await sb.from('mission_applications').update({status:verdict,updated_at:new Date().toISOString()}).eq('id',pendingAppId);
+  if(verdict==='approved' && m){
+    // コイン付与
+    const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',m.owner_id).eq('coin_symbol',m.coin_symbol).single();
+    if(ow && ow.balance>=m.reward){
+      await sb.from('wallets').upsert({id:uid(),user_id:m.owner_id,coin_symbol:m.coin_symbol,balance:ow.balance-m.reward},{onConflict:'user_id,coin_symbol'});
+      const{data:uw}=await sb.from('wallets').select('balance').eq('user_id',a.applicant_id).eq('coin_symbol',m.coin_symbol).single();
+      await sb.from('wallets').upsert({id:uid(),user_id:a.applicant_id,coin_symbol:m.coin_symbol,balance:(uw?.balance||0)+m.reward},{onConflict:'user_id,coin_symbol'});
+      await sb.from('transactions').insert({id:uid(),from_user_id:m.owner_id,to_user_id:a.applicant_id,coin_symbol:m.coin_symbol,amount:m.reward,memo:'ミッション承認: '+m.title,type:'mission'});
+      // 繰り返し不可なら completion記録
+      if(!m.is_repeatable) await sb.from('mission_completions').insert({id:uid(),mission_id:m.id,user_id:a.applicant_id});
+    }
+    await sb.from('notifications').insert({id:uid(),user_id:a.applicant_id,icon:'🎯',message:'「'+m.title+'」の申請が承認されました！+'+m.reward+' '+m.coin_symbol});
+  } else if(verdict==='rejected' && m){
+    await sb.from('notifications').insert({id:uid(),user_id:a.applicant_id,icon:'❌',message:'「'+m.title+'」の申請が却下されました'});
+  }
+  closeModal('approve-app-modal'); pendingAppId=null;
+  toast(verdict==='approved'?'承認してコインを付与しました':'申請を却下しました');
+  await loadAll(); renderAll(); renderMissionTab();
+}
+
+// ── オーナー直接完了マーク ──
+let pendingOwnerComplete = null;
+function openOwnerComplete(mId){
+  pendingOwnerComplete = mId;
+  const m = allMissions.find(x=>x.id===mId);
+  const others = allUsers.filter(u=>u.id!==currentUserId);
+  // 対象ユーザー選択
+  document.getElementById('owner-complete-detail').innerHTML =
+    `「${m?.title}」を誰の達成にしますか？<br><br>`+
+    `<select class="form-input" id="owner-complete-user" style="margin-top:8px;">`+
+    (m?.target_user_id
+      ? `<option value="${m.target_user_id}">${getUser(m.target_user_id)?.name||'?'}</option>`
+      : others.map(u=>`<option value="${u.id}">${u.icon} ${u.name}</option>`).join(''))+
+    `</select>`;
+  showModal('owner-complete-modal');
+}
+
+async function ownerComplete(){
+  const u=me(); if(!u||!pendingOwnerComplete) return;
+  const mId=pendingOwnerComplete;
+  const m=allMissions.find(x=>x.id===mId);
+  const targetId=document.getElementById('owner-complete-user')?.value;
+  if(!targetId||!m){toast('エラー',true);return;}
+  const{data:ow}=await sb.from('wallets').select('balance').eq('user_id',m.owner_id).eq('coin_symbol',m.coin_symbol).single();
+  if(!ow||ow.balance<m.reward){toast('報酬コインの残高が不足しています',true);return;}
+  await sb.from('wallets').upsert({id:uid(),user_id:m.owner_id,coin_symbol:m.coin_symbol,balance:ow.balance-m.reward},{onConflict:'user_id,coin_symbol'});
+  const{data:uw}=await sb.from('wallets').select('balance').eq('user_id',targetId).eq('coin_symbol',m.coin_symbol).single();
+  await sb.from('wallets').upsert({id:uid(),user_id:targetId,coin_symbol:m.coin_symbol,balance:(uw?.balance||0)+m.reward},{onConflict:'user_id,coin_symbol'});
+  await sb.from('transactions').insert({id:uid(),from_user_id:m.owner_id,to_user_id:targetId,coin_symbol:m.coin_symbol,amount:m.reward,memo:'ミッション達成: '+m.title,type:'mission'});
+  if(!m.is_repeatable) await sb.from('mission_completions').insert({id:uid(),mission_id:mId,user_id:targetId});
+  await sb.from('notifications').insert({id:uid(),user_id:targetId,icon:'🎯',message:'「'+m.title+'」達成！+'+m.reward+' '+m.coin_symbol});
+  closeModal('owner-complete-modal'); pendingOwnerComplete=null;
+  toast('ミッション完了としてコインを付与しました！'); await loadAll(); renderAll();
+}
+
+// ── ミッション提案 ──
+function openProposeMissionModal(){
+  const u=me(); if(!u) return;
+  // コイン発行者一覧（自分以外）
+  const coinOwners=[...new Set(
+    allUsers.filter(x=>x.id!==u.id && (allMissions.some(m=>m.owner_id===x.id)||allExItems.some(e=>e.owner_id===x.id)||true))
+  )];
+  document.getElementById('prop-to').innerHTML = allUsers.filter(x=>x.id!==u.id)
+    .map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  // コイン一覧（全員のコイン）
+  const allC = allUsers.flatMap(uu=>(allMissions.filter(m=>m.owner_id===uu.id).map(m=>m.coin_symbol)));
+  const uniqueSymbols=[...new Set(allMissions.map(m=>m.coin_symbol))];
+  document.getElementById('prop-coin').innerHTML = uniqueSymbols.length>0
+    ? uniqueSymbols.map(s=>`<option value="${s}">${s}</option>`).join('')
+    : '<option value="">（コインが存在しません）</option>';
+}
+function initProposeMissionModal(){ openProposeMissionModal(); document.getElementById('propose-mission-modal').classList.add('open'); }
+
+async function sendProposal(){
+  const u=me(); if(!u) return;
+  const toId=document.getElementById('prop-to').value;
+  const sym=document.getElementById('prop-coin').value;
+  const title=document.getElementById('prop-title').value.trim();
+  const desc=document.getElementById('prop-desc').value.trim();
+  const reward=parseInt(document.getElementById('prop-reward').value)||0;
+  if(!toId||!sym||!title){toast('入力を確認してください',true);return;}
+  await sb.from('mission_proposals').insert({id:uid(),proposer_id:u.id,coin_owner_id:toId,coin_symbol:sym,title,description:desc,desired_reward:reward,status:'pending'});
+  await sb.from('notifications').insert({id:uid(),user_id:toId,icon:'💡',message:u.name+'からミッション提案「'+title+'」が届きました'});
+  closeModal('propose-mission-modal');
+  ['prop-title','prop-desc','prop-reward'].forEach(x=>document.getElementById(x).value='');
+  toast('提案を送りました！'); await loadAll(); renderMissionTab();
+}
+
+// ── 提案承認 ──
+let pendingProposalId=null;
+function openApproveProposal(propId){
+  pendingProposalId=propId;
+  const p=allProposals.find(x=>x.id===propId);
+  const proposer=getUser(p?.proposer_id);
+  document.getElementById('approve-proposal-detail').innerHTML=
+    `<strong>${proposer?.name||'?'}</strong> からの提案<br>「${p?.title}」<br>${p?.description||''}<br>希望報酬: ${p?.desired_reward} ${p?.coin_symbol}`;
+  document.getElementById('ap-title').value=p?.title||'';
+  document.getElementById('ap-reward').value=p?.desired_reward||10;
+  showModal('approve-proposal-modal');
+}
+
+async function judgeProposal(verdict){
+  const u=me(); if(!u||!pendingProposalId) return;
+  const p=allProposals.find(x=>x.id===pendingProposalId);
+  if(verdict==='approved'){
+    const title=document.getElementById('ap-title').value.trim();
+    const reward=parseInt(document.getElementById('ap-reward').value)||10;
+    const vis=document.getElementById('ap-visibility').value;
+    const repeat=document.getElementById('ap-repeat').value==='true';
+    const targetId=vis==='private'?p.proposer_id:null;
+    await sb.from('missions').insert({id:uid(),owner_id:u.id,title,description:p.description||'',coin_symbol:p.coin_symbol,reward,target_user_id:targetId,is_repeatable:repeat,approval_type:'self',is_active:true});
+    await sb.from('mission_proposals').update({status:vis==='private'?'approved_private':'approved_public'}).eq('id',pendingProposalId);
+    await sb.from('notifications').insert({id:uid(),user_id:p.proposer_id,icon:'✅',message:'提案「'+title+'」が承認されました！ミッションに追加されました'});
+    toast('提案を承認してミッションを作成しました！');
+  } else {
+    await sb.from('mission_proposals').update({status:'rejected'}).eq('id',pendingProposalId);
+    await sb.from('notifications').insert({id:uid(),user_id:p.proposer_id,icon:'❌',message:'提案「'+p.title+'」が却下されました'});
+    toast('提案を却下しました');
+  }
+  closeModal('approve-proposal-modal'); pendingProposalId=null;
+  await loadAll(); renderAll(); renderMissionTab();
+}
+
+// ── 請求機能 ──
+function initPayRequestModal(){
+  const u=me(); if(!u) return;
+  const others=allUsers.filter(x=>x.id!==u.id);
+  document.getElementById('pr-to').innerHTML=others.length===0
+    ?'<option value="">（他のユーザーがいません）</option>'
+    :others.map(x=>`<option value="${x.id}">${x.icon} ${x.name}</option>`).join('');
+  // 全ユーザーのコイン（全シンボル）
+  const allSymbols=[...new Set(
+    allUsers.flatMap(uu=>Object.keys(myWallets))
+      .concat(allMissions.map(m=>m.coin_symbol))
+  )].filter(Boolean);
+  document.getElementById('pr-coin').innerHTML=allSymbols.length===0
+    ?'<option value="">（コインがありません）</option>'
+    :allSymbols.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+function openPayRequestModal(){ initPayRequestModal(); showModal('pay-request-modal'); }
+
+async function sendPayRequest(){
+  const u=me(); if(!u) return;
+  const toId=document.getElementById('pr-to').value;
+  const sym=document.getElementById('pr-coin').value;
+  const amount=parseInt(document.getElementById('pr-amount').value);
+  const memo=document.getElementById('pr-memo').value.trim();
+  if(!toId||!sym||!amount||amount<1){toast('入力を確認してください',true);return;}
+  const toUser=getUser(toId);
+  await sb.from('payment_requests').insert({id:uid(),requester_id:u.id,payer_id:toId,coin_symbol:sym,amount,memo,status:'pending'});
+  await sb.from('notifications').insert({id:uid(),user_id:toId,icon:'💸',message:u.name+'から'+amount+' '+sym+'の請求が届きました'+(memo?' 「'+memo+'」':'')});
+  closeModal('pay-request-modal');
+  ['pr-amount','pr-memo'].forEach(x=>document.getElementById(x).value='');
+  toast((toUser?.name||'?')+'に請求を送りました！'); await loadAll(); renderAll();
+}
+
+// 通知から請求を開く
+let pendingPayReqId=null;
+function openPayConfirm(reqId){
+  pendingPayReqId=reqId;
+  const r=allPayReqs.find(x=>x.id===reqId);
+  const requester=getUser(r?.requester_id);
+  document.getElementById('pay-confirm-detail').innerHTML=
+    `<strong>${requester?.name||'?'}</strong> からの請求<br><br>`+
+    `<strong style="font-size:20px;">${r?.amount} ${r?.coin_symbol}</strong><br><br>`+
+    (r?.memo?`「${r.memo}」`:'');
+  showModal('pay-confirm-modal');
+}
+
+async function judgePayReq(verdict){
+  const u=me(); if(!u||!pendingPayReqId) return;
+  const r=allPayReqs.find(x=>x.id===pendingPayReqId);
+  if(!r){closeModal('pay-confirm-modal');return;}
+  if(verdict==='paid'){
+    const b=myBal(r.coin_symbol);
+    if(b<r.amount){toast('残高が不足しています（'+b+' '+r.coin_symbol+'）',true);return;}
+    await sb.from('wallets').upsert({id:uid(),user_id:u.id,coin_symbol:r.coin_symbol,balance:b-r.amount},{onConflict:'user_id,coin_symbol'});
+    const{data:rw}=await sb.from('wallets').select('balance').eq('user_id',r.requester_id).eq('coin_symbol',r.coin_symbol).single();
+    await sb.from('wallets').upsert({id:uid(),user_id:r.requester_id,coin_symbol:r.coin_symbol,balance:(rw?.balance||0)+r.amount},{onConflict:'user_id,coin_symbol'});
+    await sb.from('transactions').insert({id:uid(),from_user_id:u.id,to_user_id:r.requester_id,coin_symbol:r.coin_symbol,amount:r.amount,memo:'請求支払: '+(r.memo||''),type:'send'});
+    await sb.from('notifications').insert({id:uid(),user_id:r.requester_id,icon:'✅',message:u.name+'が'+r.amount+' '+r.coin_symbol+'を支払いました'+(r.memo?' 「'+r.memo+'」':'')});
+    toast('支払いました！');
+  } else {
+    await sb.from('notifications').insert({id:uid(),user_id:r.requester_id,icon:'❌',message:u.name+'が請求を断りました'+(r.memo?' 「'+r.memo+'」':'')});
+    toast('請求を断りました');
+  }
+  await sb.from('payment_requests').update({status:verdict}).eq('id',pendingPayReqId);
+  closeModal('pay-confirm-modal'); pendingPayReqId=null;
+  await loadAll(); renderAll();
+}
+
+// 通知一覧に請求への対応ボタンを追加
+function renderNotifsWithActions(){
+  const nl=document.getElementById('notif-list'),ne=document.getElementById('notif-empty');
+  if(myNotifs.length===0){nl.innerHTML='';ne.style.display='block';return;}
+  ne.style.display='none';
+  nl.innerHTML=myNotifs.map(n=>{
+    // 対応する請求を探す
+    const payReq=allPayReqs.find(r=>r.payer_id===currentUserId&&r.status==='pending'&&
+      n.message.includes(r.amount+' '+r.coin_symbol)&&n.message.includes('請求'));
+    const appReq=allMissionApps.find(a=>{
+      const m=allMissions.find(x=>x.id===a.mission_id);
+      return m?.owner_id===currentUserId&&a.status==='pending'&&n.message.includes('申請');
+    });
+    const propReq=allProposals.find(p=>p.coin_owner_id===currentUserId&&p.status==='pending'&&n.message.includes('提案'));
+    let actionHtml='';
+    if(payReq) actionHtml=`<button class="btn btn-sm btn-gold" style="margin-top:6px;" onclick="openPayConfirm('${payReq.id}')">対応する</button>`;
+    else if(appReq) actionHtml=`<button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="openApproveApp('${appReq.id}')">承認する</button>`;
+    else if(propReq) actionHtml=`<button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="openApproveProposal('${propReq.id}')">承認する</button>`;
+    return `<div class="list-item" style="flex-direction:column;align-items:flex-start;">
+      <div style="display:flex;align-items:center;gap:12px;width:100%;">
+        <div class="avatar" style="font-size:20px;">${n.icon}</div>
+        <div class="list-item-info">
+          <p style="font-size:14px;color:var(--text);line-height:1.4;">${n.message}</p>
+          <p style="font-size:12px;color:var(--text3);margin-top:3px;">${timeAgo(n.created_at)}</p>
+        </div>
+      </div>
+      ${actionHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── createMission 拡張 ──
+function toggleMissionTarget(v){
+  document.getElementById('m-target-group').style.display=v==='private'?'block':'none';
+}
+
+
+function renderHomeActions(u){
+  const sec = document.getElementById('home-notif-section');
+  const list = document.getElementById('home-action-list');
+  const badge = document.getElementById('notif-badge');
+  const actions = [];
+
+  // 未払い請求
+  allPayReqs.filter(r=>r.payer_id===u.id&&r.status==='pending').forEach(r=>{
+    const requester=getUser(r.requester_id);
+    actions.push({
+      icon:'💸', color:'var(--gold)',
+      text:`<strong>${requester?.name||'?'}</strong> から <strong>${r.amount} ${r.coin_symbol}</strong> の請求`,
+      sub: r.memo||'',
+      btn:'支払う / 断る',
+      onclick:`openPayConfirm('${r.id}')`
+    });
+  });
+
+  // 未処理のミッション申請（自分のミッション）
+  const myMissionIds=allMissions.filter(m=>m.owner_id===u.id).map(m=>m.id);
+  allMissionApps.filter(a=>myMissionIds.includes(a.mission_id)&&a.status==='pending').forEach(a=>{
+    const m=allMissions.find(x=>x.id===a.mission_id);
+    const applicant=getUser(a.applicant_id);
+    actions.push({
+      icon:'📩', color:'var(--purple-l)',
+      text:`<strong>${applicant?.name||'?'}</strong> が「${m?.title||'?'}」に申請`,
+      sub: a.note||'',
+      btn:'承認 / 却下',
+      onclick:`openApproveApp('${a.id}')`
+    });
+  });
+
+  // 未処理のミッション提案（自分宛）
+  allProposals.filter(p=>p.coin_owner_id===u.id&&p.status==='pending').forEach(p=>{
+    const proposer=getUser(p.proposer_id);
+    actions.push({
+      icon:'💡', color:'var(--green)',
+      text:`<strong>${proposer?.name||'?'}</strong> からミッション提案「${p.title}」`,
+      sub: p.description||'',
+      btn:'承認 / 却下',
+      onclick:`openApproveProposal('${p.id}')`
+    });
+  });
+
+  // 未読バッジ
+  const unread = myNotifs.filter(n=>!n.is_read).length + actions.length;
+  badge.style.display = unread > 0 ? 'block' : 'none';
+
+  if(actions.length===0){
+    sec.style.display='none';
+    return;
+  }
+  sec.style.display='block';
+  list.innerHTML = actions.map(a=>`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="font-size:20px;flex-shrink:0;">${a.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;line-height:1.5;">${a.text}</div>
+          ${a.sub?`<div style="font-size:12px;color:var(--text2);margin-top:2px;">${a.sub}</div>`:''}
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" style="width:100%;margin-top:10px;" onclick="${a.onclick}">${a.btn}</button>
+    </div>`).join('');
+}
+
+
+async function markNotifsRead(){
+  const u=me(); if(!u) return;
+  const unreadIds=myNotifs.filter(n=>!n.is_read).map(n=>n.id);
+  if(unreadIds.length===0) return;
+  await sb.from('notifications').update({is_read:true}).in('id',unreadIds);
+  myNotifs.forEach(n=>n.is_read=true);
+  document.getElementById('notif-badge').style.display='none';
+}
+
+// ── Supabase Auth ──
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display='flex';
+}
+function hideLoginScreen(){
+  document.getElementById('login-screen').style.display='none';
+}
+function showSignup(){
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('signup-form').style.display='block';
+  document.getElementById('auth-error').textContent='';
+}
+function showLogin(){
+  document.getElementById('signup-form').style.display='none';
+  document.getElementById('login-form').style.display='block';
+  document.getElementById('auth-error').textContent='';
+}
+function setAuthError(msg){ document.getElementById('auth-error').textContent=msg; }
+
+async function loginWithGoogle(){
+  setAuthError('');
+  const{error}=await sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{ redirectTo: 'https://coinforge-sigma.vercel.app' }
+  });
+  if(error) setAuthError('Googleログインに失敗しました: '+error.message);
+}
+
+async function loginWithEmail(){
+  setAuthError('');
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  if(!email||!password){setAuthError('メールとパスワードを入力してください');return;}
+  show('loading-screen');
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){hide('loading-screen');setAuthError(errorMsg(error));return;}
+  await onAuthSuccess(data.user);
+}
+
+async function signUp(){
+  setAuthError('');
+  const name=document.getElementById('signup-name').value.trim();
+  const icon=document.getElementById('signup-icon').value.trim()||'😊';
+  const handle=document.getElementById('signup-handle').value.trim().replace(/\s/g,'')||name.toLowerCase();
+  const email=document.getElementById('signup-email').value.trim();
+  const password=document.getElementById('signup-password').value;
+  if(!name||!email||!password){setAuthError('すべての項目を入力してください');return;}
+  if(password.length<6){setAuthError('パスワードは6文字以上にしてください');return;}
+  show('loading-screen');
+  const{data,error}=await sb.auth.signUp({email,password,options:{data:{name,icon,handle}}});
+  if(error){hide('loading-screen');setAuthError(errorMsg(error));return;}
+  // profileをusersテーブルに作成
+  if(data.user){
+    await sb.from('users').upsert({id:data.user.id,name,icon,handle,created_at:new Date().toISOString()},{onConflict:'id'});
+  }
+  hide('loading-screen');
+  setAuthError('');
+  toast('登録完了！メール確認後にログインできます。（確認メールが届かない場合はスパムフォルダを確認してください）');
+  showLogin();
+}
+
+async function forgotPassword(){
+  const email=prompt('パスワードリセット用のメールアドレスを入力してください');
+  if(!email)return;
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://coinforge-sigma.vercel.app'});
+  if(error){toast('エラー: '+error.message,true);}
+  else{toast('パスワードリセットメールを送信しました！');}
+}
+
+async function changePassword(){
+  const pw=document.getElementById('new-password').value;
+  if(!pw||pw.length<6){toast('6文字以上のパスワードを入力してください',true);return;}
+  const{error}=await sb.auth.updateUser({password:pw});
+  if(error){toast('エラー: '+error.message,true);}
+  else{closeModal('change-password-modal');toast('パスワードを変更しました！');}
+}
+
+async function doSignOut(){
+  if(!confirm('ログアウトしますか？'))return;
+  await sb.auth.signOut();
+  currentUserId=null;
+  allUsers=[]; myCoins=[]; myWallets={}; allTxs=[];
+  window.isAdmin=false;
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+  hideLoginScreen();
+  showLoginScreen();
+}
+
+function errorMsg(error){
+  const m=error.message||'';
+  if(m.includes('Invalid login'))return 'メールアドレスまたはパスワードが違います';
+  if(m.includes('Email not confirmed'))return 'メールアドレスの確認が完了していません';
+  if(m.includes('already registered'))return 'このメールアドレスはすでに登録されています';
+  if(m.includes('unique'))return 'そのハンドル名はすでに使われています';
+  return m;
+}
+
+async function onAuthSuccess(user){
+  if(!user){hide('loading-screen');return;}
+  currentUserId = user.id;
+  localStorage.setItem('cf_uid', user.id);
+  // usersテーブルにプロフィールがなければ作成（Google初回ログイン）
+  const{data:existing}=await sb.from('users').select('id,is_admin').eq('id',user.id).single();
+  if(existing) window.isAdmin=existing.is_admin===true;
+  if(!existing){
+    const meta=user.user_metadata||{};
+    const name=meta.full_name||meta.name||user.email?.split('@')[0]||'ユーザー';
+    const handle=(meta.preferred_username||name).toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20)||'user'+Date.now();
+    await sb.from('users').insert({id:user.id,name,icon:'😊',handle,created_at:new Date().toISOString()});
+  }
+  hideLoginScreen();
+  await loadAll();
+  hide('loading-screen');
+  setupRealtime();
+  renderAll();
+  switchTab('home');
+}
+
+// renderSettingsUsers → renderSettingsProfile に
+function renderSettingsProfile(){
+  const u=me(); if(!u) return;
+  document.getElementById('settings-profile').innerHTML=`
+    <div class="list-item" style="background:var(--bg3);">
+      <div class="avatar" style="font-size:28px;width:52px;height:52px;">${u.icon||'😊'}</div>
+      <div class="list-item-info">
+        <h3 style="font-size:16px;">${u.name}</h3>
+        <p>@${u.handle}</p>
+      </div>
+    </div>`;
+  // フォームに現在値をセット
+  document.getElementById('edit-icon').value = u.icon||'😊';
+  document.getElementById('edit-name').value = u.name||'';
+  document.getElementById('edit-handle').value = u.handle||'';
+}
+
+async function confirmDelete(){
+  const u=me(); if(!u)return;
+  if(!confirm(u.name+' のアカウントを完全に削除しますか？\nこの操作は元に戻せません。'))return;
+  await sb.from('users').delete().eq('id',u.id);
+  await sb.auth.signOut();
+  currentUserId=null;
+  showLoginScreen();
+}
+
+// Supabase Auth状態監視
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='SIGNED_IN'&&session?.user){
+    if(!currentUserId){
+      show('loading-screen');
+      await onAuthSuccess(session.user);
+    }
+  }else if(event==='SIGNED_OUT'){
+    currentUserId=null;
+    hide('loading-screen');
+    showLoginScreen();
+  }else if(event==='PASSWORD_RECOVERY'){
+    // パスワードリセット後
+    showModal('change-password-modal');
+  }
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => {
-        console.log('[SW] Deleting old cache:', k);
-        return caches.delete(k);
-      }))
-    ).then(() => self.clients.claim())
-  );
+
+async function saveProfile(){
+  const u=me(); if(!u) return;
+  const icon=document.getElementById('edit-icon').value.trim()||'😊';
+  const name=document.getElementById('edit-name').value.trim();
+  const handle=document.getElementById('edit-handle').value.trim().replace(/\s/g,'').toLowerCase();
+  if(!name){toast('名前を入力してください',true);return;}
+  if(!handle){toast('ハンドル名を入力してください',true);return;}
+  if(!/^[a-z0-9_]+$/.test(handle)){toast('ハンドル名は英小文字・数字・_のみ使えます',true);return;}
+  // ハンドル重複チェック（自分以外）
+  const{data:dup}=await sb.from('users').select('id').eq('handle',handle).neq('id',u.id).single();
+  if(dup){toast('そのハンドル名はすでに使われています',true);return;}
+  const{error}=await sb.from('users').update({icon,name,handle}).eq('id',u.id);
+  if(error){toast('エラー: '+error.message,true);return;}
+  closeModal('settings-modal');
+  toast('プロフィールを更新しました！');
+  await loadAll();
+  renderAll();
+}
+
+
+// ── 管理者機能 ──
+async function loadAdminUsers(){
+  if(!window.isAdmin){toast('管理者権限がありません',true);return;}
+  const{data:users}=await sb.from('users').select('*').order('created_at');
+  const{data:wallets}=await sb.from('wallets').select('*');
+  const{data:coins}=await sb.from('coins').select('*');
+
+  const el=document.getElementById('admin-user-list');
+  const em=document.getElementById('admin-user-empty');
+  if(!users||users.length===0){el.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+
+  el.innerHTML=users.map(u=>{
+    const userWallets=wallets?.filter(w=>w.user_id===u.id)||[];
+    const userCoins=coins?.filter(c=>c.owner_id===u.id)||[];
+    const totalBal=userWallets.reduce((s,w)=>s+w.balance,0);
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="avatar" style="font-size:20px;">${u.icon||'😊'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:600;">${u.name} ${u.is_admin?'<span style="font-size:11px;background:rgba(124,58,237,.2);color:var(--purple-l);padding:2px 8px;border-radius:10px;">管理者</span>':''}</div>
+          <div style="font-size:12px;color:var(--text2);">@${u.handle}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">コイン${userCoins.length}種 · 総残高${totalBal.toLocaleString()}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="adminToggleAdmin('${u.id}','${u.name}',${u.is_admin})">
+          ${u.is_admin?'管理者を解除':'管理者にする'}
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="adminDeleteUser('${u.id}','${u.name}')">
+          ユーザーを削除
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function adminToggleAdmin(userId, userName, currentIsAdmin){
+  if(!window.isAdmin){toast('権限がありません',true);return;}
+  if(userId===currentUserId&&currentIsAdmin){
+    toast('自分の管理者権限は解除できません',true);return;
+  }
+  const newVal=!currentIsAdmin;
+  if(!confirm(`${userName} を${newVal?'管理者にします':'管理者から外します'}。よろしいですか？`))return;
+  await sb.from('users').update({is_admin:newVal}).eq('id',userId);
+  toast(newVal?`${userName} を管理者にしました`:`${userName} の管理者権限を解除しました`);
+  await loadAdminUsers();
+}
+
+async function adminDeleteUser(userId, userName){
+  if(!window.isAdmin){toast('権限がありません',true);return;}
+  if(userId===currentUserId){toast('自分自身は削除できません',true);return;}
+  if(!confirm(`【警告】${userName} のアカウントとすべてのデータを削除します。
+この操作は元に戻せません。
+
+本当に削除しますか？`))return;
+  // 関連データを順番に削除
+  await sb.from('mission_completions').delete().eq('user_id',userId);
+  await sb.from('mission_applications').delete().eq('applicant_id',userId);
+  await sb.from('mission_proposals').delete().or(`proposer_id.eq.${userId},coin_owner_id.eq.${userId}`);
+  await sb.from('payment_requests').delete().or(`requester_id.eq.${userId},payer_id.eq.${userId}`);
+  await sb.from('exchange_orders').delete().or(`buyer_id.eq.${userId},owner_id.eq.${userId}`);
+  await sb.from('exchange_items').delete().eq('owner_id',userId);
+  await sb.from('coin_operations').delete().eq('operator_id',userId);
+  await sb.from('wallets').delete().eq('user_id',userId);
+  await sb.from('coins').delete().eq('owner_id',userId);
+  await sb.from('communities').delete().eq('owner_id',userId);
+  await sb.from('missions').delete().eq('owner_id',userId);
+  await sb.from('notifications').delete().eq('user_id',userId);
+  await sb.from('transactions').delete().or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`);
+  await sb.from('users').delete().eq('id',userId);
+  toast(`${userName} を削除しました`);
+  await loadAll();
+  await loadAdminUsers();
+  renderAll();
+}
+
+async function adminDeleteOrphanWallets(){
+  if(!window.isAdmin){toast('権限がありません',true);return;}
+  if(!confirm('存在しないユーザーのウォレットデータを削除します。よろしいですか？'))return;
+  // usersテーブルにないuser_idのwalletを削除
+  const{data:users}=await sb.from('users').select('id');
+  const{data:wallets}=await sb.from('wallets').select('*');
+  const userIds=new Set((users||[]).map(u=>u.id));
+  const orphans=(wallets||[]).filter(w=>!userIds.has(w.user_id));
+  for(const w of orphans){
+    await sb.from('wallets').delete().eq('id',w.id);
+  }
+  toast(`${orphans.length}件の孤立ウォレットを削除しました`);
+}
+
+async function adminDeleteAllData(){
+  if(!window.isAdmin){toast('権限がありません',true);return;}
+  const confirmed=prompt('全テストデータを削除します。確認のため「全削除」と入力してください：');
+  if(confirmed!=='全削除'){toast('キャンセルしました');return;}
+  show('loading-screen');
+  const tables=['exchange_orders','exchange_items','mission_completions','mission_applications',
+    'mission_proposals','payment_requests','coin_operations','transactions',
+    'wallets','missions','communities','coins','notifications'];
+  for(const t of tables){
+    await sb.from(t).delete().neq('id','__dummy__');
+  }
+  // 自分以外のユーザーを削除
+  await sb.from('users').delete().neq('id',currentUserId);
+  hide('loading-screen');
+  toast('全テストデータを削除しました');
+  await loadAll();
+  renderAll();
+}
+
+// switchPTab に admin タブの初期化を追加
+const _origSwitchPTab = typeof switchPTab === 'function' ? switchPTab : null;
+
+
+// ── PWAインストール ──
+let deferredInstallPrompt = null;
+
+// Androidのインストールプロンプトを事前にキャプチャ
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  console.log('[CoinForge] PWA install prompt ready');
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.url.includes('supabase.co')) return;
-  if (e.request.url.includes('google')) return;
-  if (e.request.url.includes('googleapis')) return;
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
 
-  e.respondWith(
-    fetch(e.request).then(res => {
-      if (e.request.method !== 'GET') return res;
-      const clone = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, clone));
-      return res;
-    }).catch(() => caches.match(e.request))
-  );
-});
+function isInStandaloneMode(){
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+}
+
+function openInstallModal(){
+  const androidEl = document.getElementById('install-android');
+  const iosEl = document.getElementById('install-ios');
+  const doneEl = document.getElementById('install-done');
+
+  // 全非表示
+  [androidEl, iosEl, doneEl].forEach(el => el.style.display = 'none');
+
+  if(isInStandaloneMode()){
+    // すでにインストール済み
+    doneEl.style.display = 'block';
+  } else if(isIOS()){
+    // iOS → 手順案内
+    iosEl.style.display = 'block';
+  } else if(deferredInstallPrompt){
+    // Android Chrome → ネイティブダイアログ
+    androidEl.style.display = 'block';
+  } else {
+    // その他（PCなど）
+    iosEl.style.display = 'block';
+    document.getElementById('install-ios').querySelector('p').textContent =
+      'ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください';
+  }
+  showModal('install-modal');
+}
+
+async function doInstallAndroid(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const{outcome} = await deferredInstallPrompt.userChoice;
+  if(outcome === 'accepted'){
+    toast('インストールしました！🎉');
+    deferredInstallPrompt = null;
+  }
+  closeModal('install-modal');
+}
+
+
+// ── ミッション削除 ──
+async function confirmDeleteMission(missionId, title){
+  const m = allMissions.find(x=>x.id===missionId);
+  if(!m) return;
+  const u = me();
+  if(!window.isAdmin && m.owner_id!==u?.id){
+    toast('削除権限がありません',true); return;
+  }
+  if(!confirm(`ミッション「${title}」を削除しますか？\n関連する申請データも削除されます。`)) return;
+
+  // 関連データを先に削除
+  await sb.from('mission_applications').delete().eq('mission_id', missionId);
+  await sb.from('mission_completions').delete().eq('mission_id', missionId);
+  await sb.from('missions').delete().eq('id', missionId);
+
+  toast(`「${title}」を削除しました`);
+  await loadAll();
+  renderMissionTab();
+}
+
+async function boot(){
+  show('loading-screen');
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user){
+    await onAuthSuccess(session.user);
+  }else{
+    hide('loading-screen');
+    showLoginScreen();
+  }
+}
+boot();
+</script>
+</body>
+</html>
