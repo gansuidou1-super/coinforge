@@ -1704,11 +1704,11 @@ function renderMissionCard(m, u, target, isOwner){
   const isMyMission = m.owner_id === u.id;
   const isTarget = !m.target_user_id || m.target_user_id === u.id;
 
-  // 申請済みかチェック（繰り返し可なら過去の「承認済」は無視し、審査中のものだけブロックする）
+  // 申請済みかチェック（繰り返し可なミッションは審査中でも何度でも申請できるようにする）
   const myApps = allMissionApps.filter(a=>a.mission_id===m.id&&a.applicant_id===u.id);
   const myPendingApp = myApps.find(a=>a.status==='pending');
   const myApprovedApp = myApps.find(a=>a.status==='approved');
-  const applied = !!myPendingApp;
+  const applied = !m.is_repeatable && !!myPendingApp;
   const appApproved = !m.is_repeatable && !!myApprovedApp;
 
   let actionBtn = '';
@@ -1722,6 +1722,10 @@ function renderMissionCard(m, u, target, isOwner){
         actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>✓ 承認済</button>`;
       } else if(applied){
         actionBtn = `<button class="btn btn-sm btn-outline" style="flex-shrink:0;opacity:.5;" disabled>申請中...</button>`;
+      } else if(m.is_repeatable && myPendingApp){
+        // 繰り返し可：審査中でも続けて申請できる（件数を表示）
+        const pendingCount = myApps.filter(a=>a.status==='pending').length;
+        actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する<span style="opacity:.75;font-size:11px;"> (審査中${pendingCount}件)</span></button>`;
       } else {
         actionBtn = `<button class="btn btn-sm btn-primary" style="flex-shrink:0;" onclick="applyMission('${m.id}')">申請する</button>`;
       }
