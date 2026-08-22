@@ -440,13 +440,6 @@ select.form-input option{background:var(--card2);color:var(--text);}
   </div>
   <!-- マイページ -->
   <div class="tab-content active" id="ptab-my">
-    <div class="section">
-      <div style="margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">ミッション達成率</div>
-        <div style="font-size:26px;font-weight:800;color:var(--gold-l);margin-bottom:8px;" id="prof-rate">0%</div>
-        <div class="progress-bar"><div class="progress-fill" id="prof-bar" style="width:0%;"></div></div>
-      </div>
-    </div>
     <div class="section" style="padding-top:0;">
       <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" id="push-toggle-btn" onclick="togglePushNotif()">🔔 通知を許可する</button>
       <button class="btn btn-outline" style="width:100%;margin-bottom:10px;" onclick="showModal('settings-modal')">⚙ アカウント設定</button>
@@ -1512,9 +1505,6 @@ function renderProfile(u){
   document.getElementById('prof-txc').textContent=allTxs.length;
   const mc=allCompletions.filter(c=>c.user_id===u.id).length;
   document.getElementById('prof-mc').textContent=mc;
-  const pct=allMissions.length>0?Math.round(mc/allMissions.length*100):0;
-  document.getElementById('prof-rate').textContent=pct+'%';
-  document.getElementById('prof-bar').style.width=pct+'%';
   // coin mgmt
   const cml=document.getElementById('coin-mgmt-list'),cme=document.getElementById('coin-mgmt-empty');
   if(myCoins.length===0){cml.innerHTML='';cme.style.display='block';}
