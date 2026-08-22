@@ -1,5 +1,5 @@
-// v8 - web push notifications
-const CACHE = 'coinforge-v8';
+// v9 - remove mission achievement rate display
+const CACHE = 'coinforge-v9';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
