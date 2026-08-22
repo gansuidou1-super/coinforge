@@ -1,5 +1,5 @@
-// v7 - refresh button & pull-to-refresh on all screens
-const CACHE = 'coinforge-v7';
+// v8 - web push notifications
+const CACHE = 'coinforge-v8';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', e => {
@@ -31,5 +31,34 @@ self.addEventListener('fetch', e => {
       caches.open(CACHE).then(c => c.put(e.request, clone));
       return res;
     }).catch(() => caches.match(e.request))
+  );
+});
+
+// ── プッシュ通知の受信 ──
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(err) { data = { title: 'CoinForge', body: e.data ? e.data.text() : '' }; }
+  const title = data.title || 'CoinForge';
+  const options = {
+    body: data.body || '',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    data: { url: data.url || '/' },
+    vibrate: [100, 50, 100]
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 通知タップでアプリを開く／フォーカス
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
